@@ -102,7 +102,6 @@ pub fn ShowTable() -> impl IntoView {
     // table
     let all_conf_list = RwSignal::new(Vec::<ConfItem>::new());
 
-    // timezone
     let time_zone = RwSignal::new(String::new());
 
     Effect::new(move |_| {
@@ -530,7 +529,7 @@ pub fn ShowTable() -> impl IntoView {
             </div>
 
             <CheckboxGroup value=check_list>
-                <div style="display: flex; flex-wrap: wrap; justify-content: space-between;">
+                <div class="category-checkbox-grid">
                     <For
                         each=move || {
                             sub_list
@@ -568,17 +567,12 @@ pub fn ShowTable() -> impl IntoView {
                 </div>
             </CheckboxGroup>
 
-            <div
-                class="timezone"
-                style="padding-top: 15px; color: #666666; display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;"
-            >
-                <div
-                    style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; flex: 1 1 420px; min-width: 260px;"
-                >
-                    <div style="font-size: 16px; line-height: 1.4;">
+            <div class="timezone-controls">
+                <div class="timezone-message-row">
+                    <div class="timezone-message">
                         "Deadlines are shown in "{move || time_zone.get()}" time."
                     </div>
-                    <div style="flex: 1 1 240px; min-width: 220px; max-width: 320px;">
+                    <div class="timezone-search">
                         <Input
                             value=input_value
                             placeholder="search conference"
@@ -586,82 +580,85 @@ pub fn ShowTable() -> impl IntoView {
                             class="custom-search-input"
                         >
                             <InputPrefix slot>
-                                <Icon icon=icondata::FiSearch style="color: lightgray;" />
+                                <Icon icon=icondata::FiSearch class="search-prefix-icon" />
                             </InputPrefix>
                         </Input>
                     </div>
                 </div>
 
-                <div
-                    style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; margin-left: auto;"
-                >
+                <div class="timezone-actions">
                     <Button
                         size=ButtonSize::Small
                         appearance=ButtonAppearance::Subtle
                         on_click=move |_| show_subscription_modal.set(true)
                     >
-                        <Icon icon=icondata::AiCalendarOutlined style="margin-right: 4px;" />
+                        <Icon icon=icondata::AiCalendarOutlined class="calendar-button-icon" />
                         {move || if use_english.get() { "Subscribe" } else { "订阅" }}
                     </Button>
                     {move || {
                         if is_mobile.get() {
                             view! {
-                                <Button
-                                    size=ButtonSize::Small
-                                    appearance=ButtonAppearance::Subtle
-                                    on_click=move |_| show_filters.update(|v| *v = !*v)
-                                >
-                                    <Icon icon=icondata::FiFilter style="margin-right: 4px;" />
-                                    {move || if use_english.get() { "Filters" } else { "筛选" }}
-                                    <Icon icon=if show_filters.get() { icondata::BsChevronUp } else { icondata::BsChevronDown } style="margin-left: 4px;" />
-                                </Button>
-                                {move || {
-                                    if show_filters.get() {
-                                        view! {
-                                            <div
-                                                style="position: absolute; top: 100%; right: 0; z-index: 100; background: white; border: 1px solid #dcdfe6; border-radius: 4px; padding: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); display: flex; flex-direction: column; gap: 8px; min-width: 200px;"
-                                            >
-                                                <MultiSelectDropdown
-                                                    dropdown_id="ccf".to_string()
-                                                    title="CCF".to_string()
-                                                    options=ccf_filter_options()
-                                                    selected_values=rank_list
-                                                    use_english=use_english
-                                                    panel_width="180px".to_string()
-                                                    open_dropdown=open_dropdown
-                                                />
-                                                <MultiSelectDropdown
-                                                    dropdown_id="core".to_string()
-                                                    title="CORE".to_string()
-                                                    options=core_filter_options()
-                                                    selected_values=core_rank_list
-                                                    use_english=use_english
-                                                    panel_width="188px".to_string()
-                                                    open_dropdown=open_dropdown
-                                                />
-                                                <MultiSelectDropdown
-                                                    dropdown_id="thcpl".to_string()
-                                                    title="THCPL".to_string()
-                                                    options=thcpl_filter_options()
-                                                    selected_values=thcpl_rank_list
-                                                    use_english=use_english
-                                                    panel_width="196px".to_string()
-                                                    open_dropdown=open_dropdown
-                                                />
-                                            </div>
+                                <div class="mobile-filter-menu">
+                                    <Button
+                                        size=ButtonSize::Small
+                                        appearance=ButtonAppearance::Subtle
+                                        on_click=move |_| show_filters.update(|v| *v = !*v)
+                                    >
+                                        <Icon icon=icondata::FiFilter class="filter-button-icon" />
+                                        {move || if use_english.get() { "Filters" } else { "筛选" }}
+                                        <Icon
+                                            icon=if show_filters.get() {
+                                                icondata::BsChevronUp
+                                            } else {
+                                                icondata::BsChevronDown
+                                            }
+                                            class="filter-button-chevron"
+                                        />
+                                    </Button>
+                                    {move || {
+                                        if show_filters.get() {
+                                            view! {
+                                                <div class="mobile-filter-panel">
+                                                    <MultiSelectDropdown
+                                                        dropdown_id="ccf".to_string()
+                                                        title="CCF".to_string()
+                                                        options=ccf_filter_options()
+                                                        selected_values=rank_list
+                                                        use_english=use_english
+                                                        panel_width="180px".to_string()
+                                                        open_dropdown=open_dropdown
+                                                    />
+                                                    <MultiSelectDropdown
+                                                        dropdown_id="core".to_string()
+                                                        title="CORE".to_string()
+                                                        options=core_filter_options()
+                                                        selected_values=core_rank_list
+                                                        use_english=use_english
+                                                        panel_width="188px".to_string()
+                                                        open_dropdown=open_dropdown
+                                                    />
+                                                    <MultiSelectDropdown
+                                                        dropdown_id="thcpl".to_string()
+                                                        title="THCPL".to_string()
+                                                        options=thcpl_filter_options()
+                                                        selected_values=thcpl_rank_list
+                                                        use_english=use_english
+                                                        panel_width="196px".to_string()
+                                                        open_dropdown=open_dropdown
+                                                    />
+                                                </div>
+                                            }
+                                                .into_any()
+                                        } else {
+                                            view! {}.into_any()
                                         }
-                                            .into_any()
-                                    } else {
-                                        view! {}.into_any()
-                                    }
-                                }}
+                                    }}
+                                </div>
                             }
                                 .into_any()
                         } else {
                             view! {
-                                <div
-                                    style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: flex-end;"
-                                >
+                                <div class="desktop-filter-actions">
                                     <MultiSelectDropdown
                                         dropdown_id="ccf".to_string()
                                         title="CCF".to_string()
@@ -707,7 +704,7 @@ pub fn ShowTable() -> impl IntoView {
             />
 
             <div class="zonedivider" />
-            <div style="width: 100%">
+            <div class="table-container">
                 <Table>
                     <TableBody>
                         {move || {
@@ -715,7 +712,7 @@ pub fn ShowTable() -> impl IntoView {
                                 view! {
                                     <TableRow>
                                         <TableCell>
-                                            <div style="color: #909399; text-align: center;">
+                                            <div class="empty-state-text">
                                                 "No data available."
                                             </div>
                                         </TableCell>
@@ -772,7 +769,7 @@ pub fn ShowTable() -> impl IntoView {
                                                                             "https://dblp.org/db/conf/{}",
                                                                             conf.dblp,
                                                                         )
-                                                                        style="text-decoration: none; border-bottom: 1px solid #ccc; color: inherit;"
+                                                                        class="table-link interactive-link"
                                                                         target="_blank"
                                                                     >
                                                                         {conf.title.clone()}
@@ -785,8 +782,10 @@ pub fn ShowTable() -> impl IntoView {
                                                                         let current_like = conf.is_like;
                                                                         if !current_like {
                                                                             view! {
-                                                                             <div
-                                                                                     style="display: inline; cursor: pointer; transition: transform 0.15s ease;"
+                                                                             <button
+                                                                                     type="button"
+                                                                                     class="favorite-toggle"
+                                                                                     aria-label="Add conference to favorites"
                                                                                      on:click=move |_| {
                                                                                          all_conf_list
                                                                                              .update(|conferences| {
@@ -803,46 +802,45 @@ pub fn ShowTable() -> impl IntoView {
                                                                                              });
                                                                                      }
                                                                                  >
-                                                                                     <Icon icon=icondata::BsStar style="margin-left: 5px; font-size: 18px; color: #909399;" />
-                                                                                 </div>
+                                                                                     <Icon icon=icondata::BsStar class="favorite-icon favorite-icon-inactive" />
+                                                                                 </button>
                                                                             }
                                                                                 .into_any()
                                                                         } else {
                                                                             view! {
-                                                                             <div
-                                                                                     style="display: inline; cursor: pointer; transition: transform 0.15s ease;"
-                                                                                     on:click=move |_| {
-                                                                                         all_conf_list
-                                                                                             .update(|conferences| {
-                                                                                                 for item in conferences.iter_mut() {
-                                                                                                     if item.title == conf_title && item.year == conf_year {
-                                                                                                         item.is_like = false;
-                                                                                                         like_list
-                                                                                                             .update(|mut list| {
-                                                                                                                 list.remove(&item.id.clone());
-                                                                                                             });
-                                                                                                         break;
-                                                                                                     }
-                                                                                                 }
-                                                                                             });
-                                                                                     }
-                                                                                 >
-                                                                                     <Icon
-                                                                                         icon=icondata::BsStarFill
-                                                                                         style="color: rgb(251, 202, 4); margin-left: 5px; font-size: 18px;"
-                                                                                     />
-                                                                                 </div>
+                                                                                <button
+                                                                                    type="button"
+                                                                                    class="favorite-toggle"
+                                                                                    aria-label="Remove conference from favorites"
+                                                                                    on:click=move |_| {
+                                                                                        all_conf_list
+                                                                                            .update(|conferences| {
+                                                                                                for item in conferences.iter_mut() {
+                                                                                                    if item.title == conf_title && item.year == conf_year {
+                                                                                                        item.is_like = false;
+                                                                                                        like_list
+                                                                                                            .update(|mut list| {
+                                                                                                                list.remove(&item.id.clone());
+                                                                                                            });
+                                                                                                        break;
+                                                                                                    }
+                                                                                                }
+                                                                                            });
+                                                                                    }
+                                                                                >
+                                                                                    <Icon icon=icondata::BsStarFill class="favorite-icon favorite-icon-active" />
+                                                                                </button>
                                                                             }
                                                                                 .into_any()
                                                                         }
                                                                     }}
                                                                 </div>
 
-                                                                <div style="font-size: 14px; color: #606266; margin-top: 3px;">
+                                                                <div class="conference-meta-text">
                                                                     {conf.date.clone()} " " {conf.place.clone()}
                                                                 </div>
 
-                                                                <div style="font-size: 14px; color: #606266; margin-top: 3px;">
+                                                                <div class="conference-meta-text">
                                                                     {conf.description.clone()}
                                                                 </div>
 
@@ -888,7 +886,7 @@ pub fn ShowTable() -> impl IntoView {
                                                                             .as_ref()
                                                                             .map(|comment| {
                                                                                 view! {
-                                                                                    <span style="color: #409eff">
+                                                                                    <span class="conference-note">
                                                                                         <b>"NOTE: "</b>
                                                                                         {comment.clone()}
                                                                                     </span>
@@ -897,7 +895,7 @@ pub fn ShowTable() -> impl IntoView {
                                                                     }}
                                                                 </div>
 
-                                                                <div style="padding-top: 5px; font-size: 14px; color: #606266;">
+                                                                <div class="conference-supporting-text">
                                                                     {move || {
                                                                         if let Some(ref acc) = conf.acc_str {
                                                                             format!("Acc. Rate: {} ", acc)
@@ -905,7 +903,7 @@ pub fn ShowTable() -> impl IntoView {
                                                                             "".to_string()
                                                                         }
                                                                     }}
-                                                                    <span style="color: rgb(36, 101, 191); background: rgba(236, 240, 241, 0.7); font-size: 13px; padding: 3px 5px;">
+                                                                    <span class="conference-category-chip">
                                                                         {move || {
                                                                             if use_english.get() {
                                                                                 conf.subname_en.clone()
@@ -956,7 +954,7 @@ pub fn ShowTable() -> impl IntoView {
                                                                             .into_any()
                                                                     }
                                                                 }}
-                                                                <div style="font-size: 14px; color: #606266; margin-top: 3px;">
+                                                                <div class="conference-meta-text">
                                                                     {move || {
                                                                         if is_tbd {
                                                                             view! {
@@ -964,7 +962,7 @@ pub fn ShowTable() -> impl IntoView {
                                                                                     "Deadline: "
                                                                                     <a
                                                                                         href="https://github.com/ccfddl/ccf-deadlines/pulls"
-                                                                                        style="text-decoration: none; border-bottom: 1px solid #ccc; color: inherit;"
+                                                                                        class="inline-muted-link interactive-link"
                                                                                         target="_blank"
                                                                                     >
                                                                                         "pull request to update"
@@ -980,11 +978,11 @@ pub fn ShowTable() -> impl IntoView {
                                                                         }
                                                                     }}
                                                                 </div>
-                                                                <div style="font-size: 14px; color: #606266; margin-top: 3px;">
+                                                                <div class="conference-meta-text">
                                                                     "website: "
                                                                     <a
                                                                         href=conf.link.clone()
-                                                                        style="text-decoration: none; border-bottom: 1px solid #ccc; color: inherit; word-wrap: break-word;"
+                                                                        class="inline-muted-link interactive-link inline-break-link"
                                                                         target="_blank"
                                                                     >
                                                                         {conf.link.clone()}
@@ -1017,7 +1015,7 @@ pub fn ShowTable() -> impl IntoView {
                 <div class="footer-text">
                     <span>
                         "Maintained by @ccfddl. If you find it useful, star or follow "
-                        <a style="color: #666666" href="https://github.com/ccfddl" target="_blank">
+                        <a class="footer-link interactive-link" href="https://github.com/ccfddl" target="_blank">
                             "@ccfddl"
                         </a> " on Github."
                     </span>
@@ -1030,9 +1028,9 @@ pub fn ShowTable() -> impl IntoView {
             <style>
                 {r#"
                 .tag-container .tag-highlight .plain-tag {
-                  background: #ecf5ff !important;
-                  color: #1d4ed8 !important;
-                  border: 1px solid #93c5fd !important;
+                  background: var(--color-primary-soft) !important;
+                  color: var(--color-text-accent) !important;
+                  border: 1px solid var(--color-border-strong) !important;
                   font-weight: 600;
                 }
                 "#}

@@ -2,6 +2,20 @@
 <html>
 
 <head>
+  <script>
+    (() => {
+      const stored = localStorage.getItem('theme');
+      const preference = stored === 'light' || stored === 'dark' || stored === 'system'
+        ? stored
+        : 'system';
+      const media = window.matchMedia('(prefers-color-scheme: dark)');
+      const resolved = preference === 'system'
+        ? (media.matches ? 'dark' : 'light')
+        : preference;
+      document.documentElement.setAttribute('data-theme', resolved);
+    })();
+  </script>
+
   <!-- Google tag (gtag.js) -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-RY374M6FJ8"></script>
   <script>

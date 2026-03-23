@@ -361,7 +361,7 @@ pub fn SubscriptionModal(
                         }}
                     </DialogTitle>
                     <DialogContent>
-                        <div style="margin-bottom: 16px; color: #666; font-size: 14px;">
+                        <div class="subscription-modal-intro">
                             {move || {
                                 if use_english.get() {
                                     "These links are generated from the filters currently active on this page."
@@ -371,8 +371,8 @@ pub fn SubscriptionModal(
                             }}
                         </div>
 
-                        <div style="margin-bottom: 16px; padding: 12px; background: #f5f7fa; border-radius: 8px; font-size: 13px;">
-                            <div style="font-size: 12px; font-weight: 600; color: #606266; margin-bottom: 6px;">
+                        <div class="subscription-summary-card">
+                            <div class="subscription-summary-label">
                                 {move || {
                                     if use_english.get() {
                                         "This subscription will include"
@@ -381,7 +381,7 @@ pub fn SubscriptionModal(
                                     }
                                 }}
                             </div>
-                            <div style="color: #303133;">
+                            <div class="subscription-summary-value">
                                 {move || {
                                     let subs = check_list.get();
                                     let ranks = rank_list.get();
@@ -398,7 +398,7 @@ pub fn SubscriptionModal(
                                 }}
                             </div>
                             <Show when=move || has_multiple_subscriptions.get()>
-                                <div style="margin-top: 8px; font-size: 12px; color: #909399; line-height: 1.6;">
+                                <div class="subscription-summary-help">
                                     {move || {
                                         if use_english.get() {
                                             "Multiple links are shown because the current filters expand into separate subscription combinations."
@@ -410,8 +410,8 @@ pub fn SubscriptionModal(
                             </Show>
                         </div>
 
-                        <div style="margin-bottom: 16px;">
-                            <div style="font-weight: 500; margin-bottom: 8px; font-size: 14px;">
+                        <div class="subscription-section">
+                            <div class="subscription-section-title">
                                 {move || {
                                     if use_english.get() {
                                         "Calendar Subscription"
@@ -420,7 +420,7 @@ pub fn SubscriptionModal(
                                     }
                                 }}
                             </div>
-                            <div style="font-size: 12px; color: #909399; margin-bottom: 10px; line-height: 1.6;">
+                            <div class="subscription-section-help">
                                 {move || {
                                     if use_english.get() {
                                         "Use these webcal links in Apple Calendar, Outlook, Google Calendar, or any app that supports calendar subscriptions."
@@ -435,9 +435,7 @@ pub fn SubscriptionModal(
                                 if subs.len() > 10 {
                                     let msg = render_link_limit_message(subs.len(), use_english.get());
                                     view! {
-                                        <div style="color: #e6a23c; padding: 8px; background: #fdf6ec; border-radius: 4px; font-size: 13px;">
-                                            {msg}
-                                        </div>
+                                        <div class="subscription-warning-box">{msg}</div>
                                     }
                                         .into_any()
                                 } else {
@@ -452,16 +450,14 @@ pub fn SubscriptionModal(
                                                     let desc = sub.description.clone();
                                                     let label = format!("{}. {}", idx + 1, desc);
                                                     view! {
-                                                        <div style="margin-bottom: 12px; padding: 10px; border: 1px solid #dcdfe6; border-radius: 6px; background: white;">
-                                                            <div style="font-size: 13px; color: #333; margin-bottom: 6px; font-weight: 500;">
-                                                                {label}
-                                                            </div>
-                                                            <div style="display: flex; align-items: center; gap: 8px;">
+                                                        <div class="subscription-link-card">
+                                                            <div class="subscription-link-title">{label}</div>
+                                                            <div class="subscription-link-row">
                                                                 <input
                                                                     type="text"
                                                                     readonly
                                                                     value=url
-                                                                    style="flex: 1; padding: 6px 8px; border: 1px solid #dcdfe6; border-radius: 4px; font-size: 12px; font-family: monospace; background: #f5f7fa; outline: none;"
+                                                                    class="subscription-link-input"
                                                                 />
                                                                 <Button
                                                                     size=ButtonSize::Small
@@ -484,7 +480,7 @@ pub fn SubscriptionModal(
                                 }
                             }}
 
-                            <div style="font-size: 12px; color: #909399; margin-top: 6px; line-height: 1.6;">
+                            <div class="subscription-footnote">
                                 {move || {
                                     if use_english.get() {
                                         "Copy one link, then paste it into your calendar app's \"Subscribe by URL\" entry."
@@ -495,8 +491,8 @@ pub fn SubscriptionModal(
                             </div>
                         </div>
 
-                        <div style="margin-bottom: 16px;">
-                            <div style="font-weight: 500; margin-bottom: 8px; font-size: 14px;">
+                        <div class="subscription-section">
+                            <div class="subscription-section-title">
                                 {move || {
                                     if use_english.get() {
                                         "RSS Feed"
@@ -505,7 +501,7 @@ pub fn SubscriptionModal(
                                     }
                                 }}
                             </div>
-                            <div style="font-size: 12px; color: #909399; margin-bottom: 10px; line-height: 1.6;">
+                            <div class="subscription-section-help">
                                 {move || {
                                     if use_english.get() {
                                         "Use RSS if you prefer deadline updates in an RSS reader instead of a calendar app."
@@ -520,9 +516,7 @@ pub fn SubscriptionModal(
                                 if subs.len() > 10 {
                                     let msg = render_link_limit_message(subs.len(), use_english.get());
                                     view! {
-                                        <div style="color: #e6a23c; padding: 8px; background: #fdf6ec; border-radius: 4px; font-size: 13px;">
-                                            {msg}
-                                        </div>
+                                        <div class="subscription-warning-box">{msg}</div>
                                     }
                                         .into_any()
                                 } else {
@@ -537,16 +531,14 @@ pub fn SubscriptionModal(
                                                     let desc = sub.description.clone();
                                                     let label = format!("{}. {}", idx + 1, desc);
                                                     view! {
-                                                        <div style="margin-bottom: 12px; padding: 10px; border: 1px solid #dcdfe6; border-radius: 6px; background: white;">
-                                                            <div style="font-size: 13px; color: #333; margin-bottom: 6px; font-weight: 500;">
-                                                                {label}
-                                                            </div>
-                                                            <div style="display: flex; align-items: center; gap: 8px;">
+                                                        <div class="subscription-link-card">
+                                                            <div class="subscription-link-title">{label}</div>
+                                                            <div class="subscription-link-row">
                                                                 <input
                                                                     type="text"
                                                                     readonly
                                                                     value=url
-                                                                    style="flex: 1; padding: 6px 8px; border: 1px solid #dcdfe6; border-radius: 4px; font-size: 12px; font-family: monospace; background: #f5f7fa; outline: none;"
+                                                                    class="subscription-link-input"
                                                                 />
                                                                 <Button
                                                                     size=ButtonSize::Small
@@ -569,7 +561,7 @@ pub fn SubscriptionModal(
                                 }
                             }}
 
-                            <div style="font-size: 12px; color: #909399; margin-top: 4px;">
+                            <div class="subscription-footnote subscription-footnote-compact">
                                 {move || {
                                     if use_english.get() {
                                         "Paste the copied link into your RSS reader."
@@ -580,8 +572,8 @@ pub fn SubscriptionModal(
                             </div>
                         </div>
 
-                        <div style="padding: 12px; background: #ecf5ff; border-radius: 8px; border-left: 4px solid #409eff;">
-                            <div style="font-weight: 500; margin-bottom: 8px; font-size: 14px; color: #409eff;">
+                        <div class="subscription-tip-box">
+                            <div class="subscription-tip-title">
                                 {move || {
                                     if use_english.get() {
                                         "Quick tip"
@@ -590,7 +582,7 @@ pub fn SubscriptionModal(
                                     }
                                 }}
                             </div>
-                            <div style="font-size: 13px; line-height: 1.8; color: #606266;">
+                            <div class="subscription-tip-content">
                                 {move || {
                                     if use_english.get() {
                                         view! {
@@ -611,12 +603,12 @@ pub fn SubscriptionModal(
                                     }
                                 }}
                             </div>
-                            <div style="margin-top: 8px; font-size: 12px; color: #909399; font-style: italic;">
+                            <div class="subscription-tip-hint">
                                 {move || platform_hint.get()}
                             </div>
                         </div>
 
-                        <div style="margin-top: 12px; font-size: 12px; color: #909399; text-align: center;">
+                        <div class="subscription-refresh-note">
                             {move || {
                                 if use_english.get() {
                                     "Subscribed calendars usually refresh every 12-24 hours."

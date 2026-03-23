@@ -82,7 +82,7 @@ pub fn TimeLine(time_points: Vec<TimePoint>) -> impl IntoView {
         let base_style = format!("left:{}%;", clamped_percent);
 
         if index as i32 <= expire_index.get() {
-            format!("{}border: 2px solid #ccc;", base_style)
+            format!("{}border: 2px solid var(--color-border-subtle);", base_style)
         } else {
             base_style
         }
@@ -97,7 +97,7 @@ pub fn TimeLine(time_points: Vec<TimePoint>) -> impl IntoView {
 
     let get_backup_text_style = move |index: usize| -> &'static str {
         if index as i32 <= expire_index.get() {
-            "color: #ccc;"
+            "color: var(--color-border-subtle);"
         } else {
             ""
         }
@@ -125,21 +125,24 @@ pub fn TimeLine(time_points: Vec<TimePoint>) -> impl IntoView {
                 .line_time .all_line {
                     width: 90%;
                     margin: 0 5%;
-                    padding-top: 25px;
-                    padding-bottom: 15px;
+                    padding: 28px 0 18px;
+                    border: 1px solid var(--color-border-light);
+                    border-radius: 12px;
+                    background: color-mix(in srgb, var(--color-bg-elevated) 90%, var(--color-bg-soft));
+                    box-shadow: var(--shadow-sm);
                 }
 
                 /* 时间轴主线 */
                 .line_time .line {
                     width: 100%;
                     height: 3px;
-                    background: #ccc;
+                    background: var(--color-border-subtle);
                     position: relative;
                 }
 
                 /* 可进度线 */
                 .line_time .can_line {
-                    background: #1890ff77;
+                    background: color-mix(in srgb, var(--color-primary) 45%, transparent);
                     height: 3px;
                     width: 0%;
                     position: absolute;
@@ -157,14 +160,14 @@ pub fn TimeLine(time_points: Vec<TimePoint>) -> impl IntoView {
                     width: 1px;
                     height: 8px;
                     border: 0;
-                    background: #bbb;
+                    background: var(--color-text-muted);
                     position: absolute;
                     top: -3px;
                     white-space: nowrap;
                 }
 
                 .line_time .reference em {
-                    color: #bbb;
+                    color: var(--color-text-muted);
                     position: absolute;
                     transform: translateX(-50%);
                     margin-top: 5px;
@@ -176,8 +179,8 @@ pub fn TimeLine(time_points: Vec<TimePoint>) -> impl IntoView {
                     width: 8px;
                     height: 8px;
                     border-radius: 50%;
-                    border: 2px solid #4a9eff;
-                    background: white;
+                    border: 2px solid var(--color-border-strong);
+                    background: var(--color-bg-elevated);
                     position: absolute;
                     top: -3px;
                     white-space: nowrap;
@@ -187,16 +190,17 @@ pub fn TimeLine(time_points: Vec<TimePoint>) -> impl IntoView {
 
                 .line_time .dot_all em {
                     display: none;
-                    color: #409eff;
+                    color: var(--color-primary);
                     transform: translateX(-50%);
                     position: absolute;
                     top: -25px;
+                    font-weight: 600;
                 }
 
                 .line_time .dot_all:hover {
                     width: 10px;
                     height: 10px;
-                    border: 2px solid #409eff;
+                    border: 2px solid var(--color-primary);
                     top: -4px;
                 }
 
@@ -209,8 +213,8 @@ pub fn TimeLine(time_points: Vec<TimePoint>) -> impl IntoView {
                     width: 8px;
                     height: 8px;
                     border-radius: 0;
-                    border: 2px solid #4a9eff;
-                    background: white;
+                    border: 2px solid var(--color-border-strong);
+                    background: var(--color-bg-elevated);
                     position: absolute;
                     top: -3px;
                     white-space: nowrap;
@@ -220,16 +224,17 @@ pub fn TimeLine(time_points: Vec<TimePoint>) -> impl IntoView {
 
                 .line_time .square_all em {
                     display: none;
-                    color: #409eff;
+                    color: var(--color-primary);
                     transform: translateX(-50%);
                     position: absolute;
                     top: -25px;
+                    font-weight: 600;
                 }
 
                 .line_time .square_all:hover {
                     width: 10px;
                     height: 10px;
-                    border: 2px solid #409eff;
+                    border: 2px solid var(--color-primary);
                     top: -4px;
                 }
 
@@ -242,18 +247,19 @@ pub fn TimeLine(time_points: Vec<TimePoint>) -> impl IntoView {
                     width: 10px;
                     height: 10px;
                     top: -4px;
-                    border: 2px solid #FFA500;
-                    box-shadow: 0 0 10px 4px rgba(255, 163, 2, 0.3);
+                    border: 2px solid var(--color-warning);
+                    box-shadow: 0 0 10px 4px color-mix(in srgb, var(--color-warning) 30%, transparent);
                     z-index: 5;
                     position: absolute;
                 }
 
                 .line_time .sel_dot em {
                     display: none;
-                    color: #FFA500;
+                    color: var(--color-warning);
                     transform: translateX(-50%);
                     position: absolute;
                     top: -25px;
+                    font-weight: 600;
                 }
 
                 .line_time .sel_dot:hover em {

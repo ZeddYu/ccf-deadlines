@@ -6,5 +6,6 @@ pub mod gitbutton;
 pub mod header;
 pub mod showtable;
 pub mod subscription_modal;
+pub mod theme;
 pub mod timeline;
 pub mod timezone;

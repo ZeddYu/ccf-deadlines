@@ -1,8 +1,10 @@
 use leptos::prelude::*;
 use serde::{Deserialize, Serialize};
+use thaw::Icon;
 use wasm_bindgen_futures::spawn_local;
 
 use crate::components::gitbutton::GitButton;
+use crate::components::theme::{ThemeController, ThemePreference};
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 struct CommitData {
@@ -15,9 +17,30 @@ struct CommitInfo {
 }
 
 #[component]
-pub fn Header() -> impl IntoView {
+pub fn Header(theme_controller: ThemeController) -> impl IntoView {
     let (show_latest_conf, set_show_latest_conf) = signal(false);
     let (show_str, set_show_str) = signal(String::new());
+    let theme_preference = theme_controller.preference();
+
+    let current_theme_label = move || match theme_preference.get() {
+        ThemePreference::System => "System",
+        ThemePreference::Light => "Light",
+        ThemePreference::Dark => "Dark",
+    };
+
+    let next_theme_label = move || match theme_preference.get().next() {
+        ThemePreference::System => "System",
+        ThemePreference::Light => "Light",
+        ThemePreference::Dark => "Dark",
+    };
+
+    let theme_button_label = move || {
+        format!(
+            "Theme: {}. Click to switch to {}.",
+            current_theme_label(),
+            next_theme_label()
+        )
+    };
 
     // Effect to fetch GitHub commits data on mount
     Effect::new(move |_| {
@@ -34,21 +57,40 @@ pub fn Header() -> impl IntoView {
 
     view! {
         <section>
-            <div style="display: inline-block; align-items: center; font-size: 16px;">
+            <div class="header-brand-row">
                 <a href="/" class="title">
                     "CCFDDL"
                     <sup>"®"</sup>
                     "\u{00a0}Open Deadlines"
                 </a>
-                <div style="padding-left: 5px; display: inline-block;">
-                    <GitButton />
+                <div class="header-brand-actions">
+                    <button
+                        type="button"
+                        class="header-theme-button"
+                        aria-label=theme_button_label
+                        title=theme_button_label
+                        on:click=move |_| theme_controller.cycle_preference()
+                    >
+                        {move || {
+                            let icon = match theme_preference.get() {
+                                ThemePreference::System => icondata::BsCircleHalf,
+                                ThemePreference::Light => icondata::BsSun,
+                                ThemePreference::Dark => icondata::BsMoonStars,
+                            };
+
+                            view! { <Icon icon=icon class="header-theme-icon" /> }
+                        }}
+                    </button>
+                    <div class="header-git-button">
+                        <GitButton />
+                    </div>
                 </div>
                 {move || {
                     show_latest_conf
                         .get()
                         .then(|| {
                             view! {
-                                <span style="display: inline-block; color:#fd3c95;font-weight: bold; font-size: 16px;">
+                                <span class="header-latest-badge">
                                     "Latest: " {show_str.get()} " !!!"
                                 </span>
                             }
@@ -58,7 +100,7 @@ pub fn Header() -> impl IntoView {
             <div class="el-row subtitle">
                 "Worldwide Conference Deadline Countdowns. To add/edit a conference,\u{00a0}"
                 <a
-                    style="color: #666666"
+                    class="header-muted-link interactive-link"
                     href="https://github.com/ccfddl/ccf-deadlines/pulls"
                     target="_blank"
                 >
@@ -67,11 +109,11 @@ pub fn Header() -> impl IntoView {
             </div>
             <div class="el-row subtitle">
                 "Preview tabular portal:\u{00a0}"
-                <a style="color: #666666" href="https://ccfddl.cn/" target="_blank">
+                <a class="header-muted-link interactive-link" href="https://ccfddl.cn/" target="_blank">
                     "https://ccfddl.cn/"
                 </a> ", or scan to try\u{00a0}"
                 <a
-                    style="color: #666666"
+                    class="header-muted-link interactive-link"
                     href="https://github.com/ccfddl/ccf-deadlines/blob/main/.readme_assets/applet_qrcode.jpg"
                     target="_blank"
                 >

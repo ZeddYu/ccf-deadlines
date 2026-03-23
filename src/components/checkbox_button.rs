@@ -246,29 +246,37 @@ pub fn MultiSelectDropdown(
               gap: 6px;
               min-width: 88px;
               max-width: 132px;
-              padding: 5px 8px;
-              border: 1px solid #d9d9d9;
-              border-radius: 6px;
-              background: #fff;
-              color: #666;
+              padding: 6px 9px;
+              border: 1px solid var(--color-border);
+              border-radius: 8px;
+              background: var(--color-bg-elevated);
+              color: var(--color-text-secondary);
+              box-shadow: var(--shadow-sm);
               cursor: pointer;
               user-select: none;
               text-align: left;
               font-size: 11px;
-              font-weight: 500;
-              transition: border-color 0.2s, color 0.2s, box-shadow 0.2s;
+              font-weight: 600;
+              transition: border-color 0.2s, color 0.2s, box-shadow 0.2s, background-color 0.2s, transform 0.2s;
             }
 
             .filter-dropdown-trigger:hover,
             .filter-dropdown-trigger.open {
-              border-color: #1890ff;
-              color: #1890ff;
+              border-color: var(--color-border-strong);
+              color: var(--color-text-primary);
+              background: var(--state-hover);
+            }
+
+            .filter-dropdown-trigger:focus-visible {
+              outline: none;
+              border-color: var(--color-primary);
+              box-shadow: 0 0 0 3px var(--state-focus-ring);
             }
 
             .filter-dropdown-trigger.active {
-              border-color: #1890ff;
-              color: #1890ff;
-              background: #f2f8ff;
+              border-color: var(--color-primary);
+              color: var(--color-primary);
+              background: var(--state-selected);
             }
 
             .filter-dropdown-trigger-text {
@@ -292,11 +300,12 @@ pub fn MultiSelectDropdown(
               right: 0;
               top: calc(100% + 6px);
               width: var(--filter-panel-width, 220px);
-              padding: 8px;
-              border: 1px solid #e5e7eb;
-              border-radius: 8px;
-              background: #fff;
-              box-shadow: 0 10px 24px rgba(15, 23, 42, 0.1);
+              padding: 10px;
+              border: 1px solid var(--color-border-light);
+              border-radius: 10px;
+              background: var(--color-bg-overlay);
+              box-shadow: var(--shadow-overlay);
+              backdrop-filter: blur(10px);
               z-index: 20;
             }
 
@@ -308,20 +317,29 @@ pub fn MultiSelectDropdown(
               margin-bottom: 6px;
               font-size: 11px;
               font-weight: 600;
-              color: #475569;
+              color: var(--color-text-tertiary);
             }
 
             .filter-dropdown-clear {
               border: none;
+              border-radius: 999px;
               background: transparent;
-              color: #1890ff;
+              color: var(--color-primary);
               cursor: pointer;
               font-size: 11px;
-              padding: 0;
+              font-weight: 600;
+              padding: 2px 6px;
+              transition: background-color 0.2s, color 0.2s;
+            }
+
+            .filter-dropdown-clear:hover:not(:disabled),
+            .filter-dropdown-clear:focus-visible:not(:disabled) {
+              outline: none;
+              background: var(--state-button-hover);
             }
 
             .filter-dropdown-clear:disabled {
-              color: #94a3b8;
+              color: var(--color-text-muted);
               cursor: default;
             }
 
@@ -335,19 +353,37 @@ pub fn MultiSelectDropdown(
               display: flex;
               align-items: center;
               gap: 6px;
-              padding: 5px 6px;
-              border-radius: 6px;
-              color: #334155;
+              padding: 6px 8px;
+              border-radius: 8px;
+              color: var(--color-text-primary);
               font-size: 12px;
               cursor: pointer;
+              transition: background-color 0.2s, color 0.2s;
             }
 
             .filter-dropdown-option:hover {
-              background: #f8fafc;
+              background: var(--state-hover);
+            }
+
+            .filter-dropdown-option:focus-within {
+              background: var(--state-selected);
             }
 
             .filter-dropdown-option input {
               margin: 0;
+            }
+
+            @media (max-width: 768px) {
+              .filter-dropdown-trigger {
+                width: 100%;
+                max-width: none;
+              }
+
+              .filter-dropdown-panel {
+                left: 0;
+                right: auto;
+                width: 100%;
+              }
             }
             "#}
         </style>

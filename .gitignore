@@ -224,6 +224,7 @@ pnpm-debug.log*
 **/*.rs.bk
 .monkeycode
 AGENTS.md
+CLAUDE.md
 .codex
 .claude
 .aider*
