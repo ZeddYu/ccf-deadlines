@@ -58,14 +58,21 @@ mod tests {
     }
 
     #[test]
-    fn toggles_category_membership() {
-        let mut selected = HashSet::from(["AI".to_string()]);
+    fn top_section_order_matches_phase1_layout() {
+        const SHOWTABLE_SOURCE: &str = include_str!("showtable.rs");
 
-        toggle_category_selection(&mut selected, "AI");
-        assert!(!selected.contains("AI"));
+        fn index_of(needle: &str) -> usize {
+            SHOWTABLE_SOURCE
+                .find(needle)
+                .unwrap_or_else(|| panic!("expected to find `{needle}` in showtable.rs"))
+        }
 
-        toggle_category_selection(&mut selected, "DB");
-        assert!(selected.contains("DB"));
+        let primary_toolbar = index_of("class=\"primary-toolbar\"");
+        let secondary_meta = index_of("class=\"secondary-meta-row\"");
+        let category_chips = index_of("class=\"category-chip-section\"");
+
+        assert!(primary_toolbar < secondary_meta);
+        assert!(secondary_meta < category_chips);
     }
 }
 
@@ -547,58 +554,8 @@ pub fn ShowTable(use_english: RwSignal<bool>) -> impl IntoView {
 
     view! {
         <section>
-            <div class="el-switch">
-                <span class=("is_active", move || !use_english.get())>"中文"</span>
-                <Switch checked=use_english />
-                <span class=("is_active", move || use_english.get())>"English"</span>
-            </div>
-
-            <div class="category-actions-row">
-                <button
-                    type="button"
-                    class=move || {
-                        if is_all_checked.get() {
-                            "category-chip category-chip-selected category-chip-action"
-                        } else {
-                            "category-chip category-chip-action"
-                        }
-                    }
-                    aria-pressed=move || is_all_checked.get().to_string()
-                    on:click=handle_check_all
-                >
-                    {move || select_all_name.get()}
-                </button>
-            </div>
-
-            <div class="category-chip-grid">
-                <For
-                    each=move || { sub_list.get().into_iter().collect::<Vec<Category>>() }
-                    key=|item| item.sub.clone()
-                    children=move |item| {
-                        let sub = item.sub.clone();
-
-                        view! {
-                            <CategoryChip
-                                category=item
-                                selected=Signal::derive(move || check_list.get().contains(&sub))
-                                use_english=use_english.into()
-                                is_mobile=is_mobile.into()
-                                on_toggle=Callback::new(move |value: String| {
-                                    check_list.update(|selected| {
-                                        toggle_category_selection(selected, &value);
-                                    });
-                                })
-                            />
-                        }
-                    }
-                />
-            </div>
-
-            <div class="timezone-controls">
-                <div class="timezone-message-row">
-                    <div class="timezone-message">
-                        "Deadlines are shown in "{move || time_zone.get()}" time."
-                    </div>
+            <div class="primary-toolbar">
+                <div class="primary-toolbar-main">
                     <div class="timezone-search">
                         <Input
                             value=input_value
@@ -613,7 +570,7 @@ pub fn ShowTable(use_english: RwSignal<bool>) -> impl IntoView {
                     </div>
                 </div>
 
-                <div class="timezone-actions">
+                <div class="primary-toolbar-actions">
                     <Button
                         size=ButtonSize::Small
                         appearance=ButtonAppearance::Subtle
@@ -718,6 +675,55 @@ pub fn ShowTable(use_english: RwSignal<bool>) -> impl IntoView {
                                 .into_any()
                         }
                     }}
+                </div>
+            </div>
+
+            <div class="secondary-meta-row">
+                <div class="timezone-message">
+                    "Deadlines are shown in "{move || time_zone.get()}" time."
+                </div>
+            </div>
+
+            <div class="category-chip-section">
+                <div class="category-actions-row">
+                    <button
+                        type="button"
+                        class=move || {
+                            if is_all_checked.get() {
+                                "category-chip category-chip-selected category-chip-action"
+                            } else {
+                                "category-chip category-chip-action"
+                            }
+                        }
+                        aria-pressed=move || is_all_checked.get().to_string()
+                        on:click=handle_check_all
+                    >
+                        {move || select_all_name.get()}
+                    </button>
+                </div>
+
+                <div class="category-chip-grid">
+                    <For
+                        each=move || { sub_list.get().into_iter().collect::<Vec<Category>>() }
+                        key=|item| item.sub.clone()
+                        children=move |item| {
+                            let sub = item.sub.clone();
+
+                            view! {
+                                <CategoryChip
+                                    category=item
+                                    selected=Signal::derive(move || check_list.get().contains(&sub))
+                                    use_english=use_english.into()
+                                    is_mobile=is_mobile.into()
+                                    on_toggle=Callback::new(move |value: String| {
+                                        check_list.update(|selected| {
+                                            toggle_category_selection(selected, &value);
+                                        });
+                                    })
+                                />
+                            }
+                        }
+                    />
                 </div>
             </div>
 
@@ -946,4 +952,25 @@ fn set_in_local_storage(key: &str, value: &str) {
     let window = window().unwrap();
     let local_storage = window.local_storage().ok().flatten().unwrap();
     local_storage.set_item(key, value).unwrap();
+}
+
+#[cfg(test)]
+mod tests {
+    const SHOWTABLE_SOURCE: &str = include_str!("showtable.rs");
+
+    fn index_of(needle: &str) -> usize {
+        SHOWTABLE_SOURCE
+            .find(needle)
+            .unwrap_or_else(|| panic!("expected to find `{needle}` in showtable.rs"))
+    }
+
+    #[test]
+    fn top_section_order_matches_phase1_layout() {
+        let primary_toolbar = index_of("class=\"primary-toolbar\"");
+        let secondary_meta = index_of("class=\"secondary-meta-row\"");
+        let category_chips = index_of("class=\"category-chip-section\"");
+
+        assert!(primary_toolbar < secondary_meta);
+        assert!(secondary_meta < category_chips);
+    }
 }

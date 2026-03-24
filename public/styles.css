@@ -360,24 +360,43 @@ a {
     color: var(--color-primary);
 }
 
-.timezone-controls {
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-    margin-top: 14px;
-    padding: 14px 16px;
-    border: 1px solid var(--color-border-light);
-    border-radius: var(--radius-lg);
-    background: var(--surface-panel);
-    box-shadow: var(--shadow-sm);
-}
-
-.timezone-message-row {
+.primary-toolbar,
+.secondary-meta-row,
+.category-chip-section {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
     flex-wrap: wrap;
+}
+
+.primary-toolbar {
+    margin-top: 14px;
+}
+
+.primary-toolbar-main,
+.primary-toolbar-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.primary-toolbar-main {
+    flex: 1 1 320px;
+}
+
+.primary-toolbar-actions {
+    justify-content: flex-end;
+}
+
+.secondary-meta-row {
+    margin-top: 12px;
+    padding: 0 4px;
+}
+
+.category-chip-section {
+    margin-top: 12px;
 }
 
 .timezone-message {
