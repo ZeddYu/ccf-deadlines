@@ -511,67 +511,14 @@ pub fn ShowTable() -> impl IntoView {
 
     view! {
         <section>
-            <div class="el-switch">
-                <span class=("is_active", move || !use_english.get())>"中文"</span>
-                <Switch checked=use_english />
-                <span class=("is_active", move || use_english.get())>"English"</span>
-            </div>
-
-            <div class="checkbox-item">
-                <label>
-                    <Checkbox
-                        size=CheckboxSize::Large
-                        checked=is_all_checked
-                        on:change=handle_check_all
-                        label=select_all_name
-                    />
-                </label>
-            </div>
-
-            <CheckboxGroup value=check_list>
-                <div class="category-checkbox-grid">
-                    <For
-                        each=move || {
-                            sub_list
-                                .get()
-                                .into_iter()
-                                .enumerate()
-                                .collect::<Vec<(usize, Category)>>()
-                        }
-                        key=|(_, item)| item.sub.clone()
-                        children=move |(_, item)| {
-                            let sub = item.sub.clone();
-                            let label = Memo::new(move |_| {
-                                if is_mobile.get() {
-                                    sub.clone()
-                                } else if use_english.get() {
-                                    item.name_en.clone()
-                                } else {
-                                    item.name.clone()
-                                }
-                            });
-
-                            view! {
-                                <div class="checkbox-item">
-                                    <label>
-                                        <Checkbox
-                                            size=CheckboxSize::Large
-                                            label=label
-                                            value=item.sub.clone()
-                                        />
-                                    </label>
-                                </div>
-                            }
-                        }
-                    />
-                </div>
-            </CheckboxGroup>
-
-            <div class="timezone-controls">
-                <div class="timezone-message-row">
-                    <div class="timezone-message">
-                        "Deadlines are shown in "{move || time_zone.get()}" time."
+            <div class="primary-toolbar">
+                <div class="primary-toolbar-main">
+                    <div class="el-switch">
+                        <span class=("is_active", move || !use_english.get())>"中文"</span>
+                        <Switch checked=use_english />
+                        <span class=("is_active", move || use_english.get())>"English"</span>
                     </div>
+
                     <div class="timezone-search">
                         <Input
                             value=input_value
@@ -586,7 +533,7 @@ pub fn ShowTable() -> impl IntoView {
                     </div>
                 </div>
 
-                <div class="timezone-actions">
+                <div class="primary-toolbar-actions">
                     <Button
                         size=ButtonSize::Small
                         appearance=ButtonAppearance::Subtle
@@ -692,6 +639,64 @@ pub fn ShowTable() -> impl IntoView {
                         }
                     }}
                 </div>
+            </div>
+
+            <div class="secondary-meta-row">
+                <div class="timezone-message">
+                    "Deadlines are shown in "{move || time_zone.get()}" time."
+                </div>
+            </div>
+
+            <div class="category-chip-section">
+                <div class="checkbox-item">
+                    <label>
+                        <Checkbox
+                            size=CheckboxSize::Large
+                            checked=is_all_checked
+                            on:change=handle_check_all
+                            label=select_all_name
+                        />
+                    </label>
+                </div>
+
+                <CheckboxGroup value=check_list>
+                    <div class="category-checkbox-grid">
+                        <For
+                            each=move || {
+                                sub_list
+                                    .get()
+                                    .into_iter()
+                                    .enumerate()
+                                    .collect::<Vec<(usize, Category)>>()
+                            }
+                            key=|(_, item)| item.sub.clone()
+                            children=move |(_, item)| {
+                                let sub = item.sub.clone();
+                                let label = Memo::new(move |_| {
+                                    if is_mobile.get() {
+                                        sub.clone()
+                                    } else if use_english.get() {
+                                        item.name_en.clone()
+                                    } else {
+                                        item.name.clone()
+                                    }
+                                });
+
+                                view! {
+                                    <div class="checkbox-item">
+                                        <label>
+                                            <Checkbox
+                                                size=CheckboxSize::Large
+                                                label=label
+                                                value=item.sub.clone()
+                                            />
+                                        </label>
+                                    </div>
+                                }
+                            }
+                        />
+                    </div>
+                </CheckboxGroup>
             </div>
 
             <SubscriptionModal
@@ -1156,4 +1161,25 @@ fn set_in_local_storage(key: &str, value: &str) {
     let window = window().unwrap();
     let local_storage = window.local_storage().ok().flatten().unwrap();
     local_storage.set_item(key, value).unwrap();
+}
+
+#[cfg(test)]
+mod tests {
+    const SHOWTABLE_SOURCE: &str = include_str!("showtable.rs");
+
+    fn index_of(needle: &str) -> usize {
+        SHOWTABLE_SOURCE
+            .find(needle)
+            .unwrap_or_else(|| panic!("expected to find `{needle}` in showtable.rs"))
+    }
+
+    #[test]
+    fn top_section_order_matches_phase1_layout() {
+        let primary_toolbar = index_of("class=\"primary-toolbar\"");
+        let secondary_meta = index_of("class=\"secondary-meta-row\"");
+        let category_chips = index_of("class=\"category-chip-section\"");
+
+        assert!(primary_toolbar < secondary_meta);
+        assert!(secondary_meta < category_chips);
+    }
 }
