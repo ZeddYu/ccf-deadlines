@@ -1,6 +1,6 @@
 use leptos::prelude::*;
 use serde::{Deserialize, Serialize};
-use thaw::Icon;
+use thaw::{Icon, Switch};
 use wasm_bindgen_futures::spawn_local;
 
 use crate::components::gitbutton::GitButton;
@@ -17,7 +17,7 @@ struct CommitInfo {
 }
 
 #[component]
-pub fn Header(theme_controller: ThemeController) -> impl IntoView {
+pub fn Header(theme_controller: ThemeController, use_english: RwSignal<bool>) -> impl IntoView {
     let (show_latest_conf, set_show_latest_conf) = signal(false);
     let (show_str, set_show_str) = signal(String::new());
     let theme_preference = theme_controller.preference();
@@ -42,7 +42,6 @@ pub fn Header(theme_controller: ThemeController) -> impl IntoView {
         )
     };
 
-    // Effect to fetch GitHub commits data on mount
     Effect::new(move |_| {
         spawn_local(async move {
             match fetch_latest_commit().await {
@@ -56,7 +55,7 @@ pub fn Header(theme_controller: ThemeController) -> impl IntoView {
     });
 
     view! {
-        <section>
+        <section class="hero-header">
             <div class="header-brand-row">
                 <a href="/" class="title">
                     "CCFDDL"
@@ -64,6 +63,11 @@ pub fn Header(theme_controller: ThemeController) -> impl IntoView {
                     "\u{00a0}Open Deadlines"
                 </a>
                 <div class="header-brand-actions">
+                    <div class="header-language-switch">
+                        <span class=("is_active", move || !use_english.get())>"中文"</span>
+                        <Switch checked=use_english />
+                        <span class=("is_active", move || use_english.get())>"English"</span>
+                    </div>
                     <button
                         type="button"
                         class="header-theme-button"
@@ -85,43 +89,57 @@ pub fn Header(theme_controller: ThemeController) -> impl IntoView {
                         <GitButton />
                     </div>
                 </div>
+            </div>
+
+            <div class="header-subtitle-row">
+                <div class="header-subtitle-primary">
+                    "Worldwide conference deadline search and countdowns."
+                </div>
+                <div class="header-subtitle-links subtitle">
+                    <span>
+                        "To add or edit a conference, "
+                        <a
+                            class="header-muted-link interactive-link"
+                            href="https://github.com/ccfddl/ccf-deadlines/pulls"
+                            target="_blank"
+                        >
+                            "send a pull request"
+                        </a>
+                        "."
+                    </span>
+                    <span>
+                        "Tabular portal: "
+                        <a class="header-muted-link interactive-link" href="https://ccfddl.cn/" target="_blank">
+                            "ccfddl.cn"
+                        </a>
+                    </span>
+                    <span>
+                        "WeChat applet: "
+                        <a
+                            class="header-muted-link interactive-link"
+                            href="https://github.com/ccfddl/ccf-deadlines/blob/main/.readme_assets/applet_qrcode.jpg"
+                            target="_blank"
+                        >
+                            "scan to try"
+                        </a>
+                    </span>
+                    <span>
+                        "*Disclaimer: The data provided by ccfddl is manually collected and for reference purposes only."
+                    </span>
+                </div>
+            </div>
+
+            <div class="header-announcement-row">
                 {move || {
                     show_latest_conf
                         .get()
                         .then(|| {
                             view! {
-                                <span class="header-latest-badge">
-                                    "Latest: " {show_str.get()} " !!!"
-                                </span>
+                                <span class="header-announcement-label">"Latest update"</span>
+                                <span class="header-announcement-text">{show_str.get()}</span>
                             }
                         })
                 }}
-            </div>
-            <div class="el-row subtitle">
-                "Worldwide Conference Deadline Countdowns. To add/edit a conference,\u{00a0}"
-                <a
-                    class="header-muted-link interactive-link"
-                    href="https://github.com/ccfddl/ccf-deadlines/pulls"
-                    target="_blank"
-                >
-                    "send a pull request"
-                </a> "."
-            </div>
-            <div class="el-row subtitle">
-                "Preview tabular portal:\u{00a0}"
-                <a class="header-muted-link interactive-link" href="https://ccfddl.cn/" target="_blank">
-                    "https://ccfddl.cn/"
-                </a> ", or scan to try\u{00a0}"
-                <a
-                    class="header-muted-link interactive-link"
-                    href="https://github.com/ccfddl/ccf-deadlines/blob/main/.readme_assets/applet_qrcode.jpg"
-                    target="_blank"
-                >
-                    "wechat applet"
-                </a> "."
-            </div>
-            <div class="el-row subtitle">
-                "*Disclaimer: The data provided by ccfddl is manually collected and for reference purposes only."
             </div>
         </section>
     }

@@ -195,6 +195,7 @@ AGENTS.md
 node_modules
 dist
 public/conference
+.worktrees/
 
 
 # local env files

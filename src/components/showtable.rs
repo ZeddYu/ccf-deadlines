@@ -1,10 +1,9 @@
-use crate::components::calendar_popover::*;
+use crate::components::category_chip::CategoryChip;
 use crate::components::checkbox_button::*;
 use crate::components::conf::ConfItem;
 use crate::components::conf::*;
-use crate::components::countdown::CountDown;
+use crate::components::conference_card::ConferenceCard;
 use crate::components::subscription_modal::*;
-use crate::components::timeline::*;
 use crate::components::timezone::*;
 use chrono::{DateTime, FixedOffset};
 use leptos::prelude::*;
@@ -18,20 +17,63 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::spawn_local;
 use web_sys::{console, window};
 
+fn are_all_categories_selected(categories: &[Category], selected: &HashSet<String>) -> bool {
+    !categories.is_empty() && categories.iter().all(|category| selected.contains(&category.sub))
+}
+
+fn all_category_subs(categories: &[Category]) -> HashSet<String> {
+    categories.iter().map(|category| category.sub.clone()).collect()
+}
+
+fn toggle_category_selection(selected: &mut HashSet<String>, sub: &str) {
+    if !selected.insert(sub.to_string()) {
+        selected.remove(sub);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn categories() -> Vec<Category> {
+        vec![
+            Category {
+                name: "人工智能".to_string(),
+                name_en: "Artificial Intelligence".to_string(),
+                sub: "AI".to_string(),
+            },
+            Category {
+                name: "数据库".to_string(),
+                name_en: "Database".to_string(),
+                sub: "DB".to_string(),
+            },
+        ]
+    }
+
+    #[test]
+    fn detects_when_all_categories_are_selected() {
+        let selected = HashSet::from(["AI".to_string(), "DB".to_string()]);
+
+        assert!(are_all_categories_selected(&categories(), &selected));
+    }
+
+    #[test]
+    fn toggles_category_membership() {
+        let mut selected = HashSet::from(["AI".to_string()]);
+
+        toggle_category_selection(&mut selected, "AI");
+        assert!(!selected.contains("AI"));
+
+        toggle_category_selection(&mut selected, "DB");
+        assert!(selected.contains("DB"));
+    }
+}
+
 #[component]
-pub fn ShowTable() -> impl IntoView {
+pub fn ShowTable(use_english: RwSignal<bool>) -> impl IntoView {
     // mobile
     let is_mobile = RwSignal::new(false);
     let show_filters = RwSignal::new(false);
-
-    // switch
-    let cached_use_english = get_from_local_storage("use_english");
-    let use_english = RwSignal::new(
-        cached_use_english
-            .as_deref()
-            .and_then(|s| s.parse::<bool>().ok())
-            .unwrap_or(false),
-    );
 
     // checkbox
     let sub_list = RwSignal::new(get_categories());
@@ -40,9 +82,7 @@ pub fn ShowTable() -> impl IntoView {
         .unwrap_or_else(|| HashSet::new());
     let check_list = RwSignal::new(cached_check_list);
     let is_all_checked_memo = Memo::new(move |_| {
-        let total_count = sub_list.get().len();
-        let checked_count = check_list.get().len();
-        total_count > 0 && checked_count == total_count
+        are_all_categories_selected(&sub_list.get(), &check_list.get())
     });
 
     let is_all_checked = RwSignal::new(false);
@@ -55,11 +95,7 @@ pub fn ShowTable() -> impl IntoView {
         if is_all_checked_memo.get_untracked() {
             check_list.set(HashSet::new());
         } else {
-            let all_subs: HashSet<String> = sub_list
-                .get_untracked()
-                .iter()
-                .map(|s| s.sub.clone())
-                .collect();
+            let all_subs = all_category_subs(&sub_list.get_untracked());
             check_list.set(all_subs);
         }
     };
@@ -517,55 +553,46 @@ pub fn ShowTable() -> impl IntoView {
                 <span class=("is_active", move || use_english.get())>"English"</span>
             </div>
 
-            <div class="checkbox-item">
-                <label>
-                    <Checkbox
-                        size=CheckboxSize::Large
-                        checked=is_all_checked
-                        on:change=handle_check_all
-                        label=select_all_name
-                    />
-                </label>
+            <div class="category-actions-row">
+                <button
+                    type="button"
+                    class=move || {
+                        if is_all_checked.get() {
+                            "category-chip category-chip-selected category-chip-action"
+                        } else {
+                            "category-chip category-chip-action"
+                        }
+                    }
+                    aria-pressed=move || is_all_checked.get().to_string()
+                    on:click=handle_check_all
+                >
+                    {move || select_all_name.get()}
+                </button>
             </div>
 
-            <CheckboxGroup value=check_list>
-                <div class="category-checkbox-grid">
-                    <For
-                        each=move || {
-                            sub_list
-                                .get()
-                                .into_iter()
-                                .enumerate()
-                                .collect::<Vec<(usize, Category)>>()
-                        }
-                        key=|(_, item)| item.sub.clone()
-                        children=move |(_, item)| {
-                            let sub = item.sub.clone();
-                            let label = Memo::new(move |_| {
-                                if is_mobile.get() {
-                                    sub.clone()
-                                } else if use_english.get() {
-                                    item.name_en.clone()
-                                } else {
-                                    item.name.clone()
-                                }
-                            });
+            <div class="category-chip-grid">
+                <For
+                    each=move || { sub_list.get().into_iter().collect::<Vec<Category>>() }
+                    key=|item| item.sub.clone()
+                    children=move |item| {
+                        let sub = item.sub.clone();
 
-                            view! {
-                                <div class="checkbox-item">
-                                    <label>
-                                        <Checkbox
-                                            size=CheckboxSize::Large
-                                            label=label
-                                            value=item.sub.clone()
-                                        />
-                                    </label>
-                                </div>
-                            }
+                        view! {
+                            <CategoryChip
+                                category=item
+                                selected=Signal::derive(move || check_list.get().contains(&sub))
+                                use_english=use_english.into()
+                                is_mobile=is_mobile.into()
+                                on_toggle=Callback::new(move |value: String| {
+                                    check_list.update(|selected| {
+                                        toggle_category_selection(selected, &value);
+                                    });
+                                })
+                            />
                         }
-                    />
-                </div>
-            </CheckboxGroup>
+                    }
+                />
+            </div>
 
             <div class="timezone-controls">
                 <div class="timezone-message-row">
@@ -727,279 +754,52 @@ pub fn ShowTable() -> impl IntoView {
                                             format!("{}{}", conf.title.clone(), conf.year.clone())
                                         }
                                         children=move |conf| {
-                                            let is_finished = conf.status == "FIN";
-                                            let is_tbd = conf.status == "TBD";
+                                            let conf_title = conf.title.clone();
+                                            let conf_year = conf.year;
                                             let ccf_rank_value = conf.rank.clone();
-                                            let ccf_rank_label = conf.displayrank.clone();
                                             let core_rank_value = conf
                                                 .corerank
                                                 .clone()
                                                 .unwrap_or_else(|| "N".to_string());
-                                            let core_tag_label = if core_rank_value == "N" {
-                                                "Non-CORE".to_string()
-                                            } else {
-                                                format!("CORE {}", core_rank_value.clone())
-                                            };
                                             let thcpl_rank_value = conf
                                                 .thcplrank
                                                 .clone()
                                                 .unwrap_or_else(|| "N".to_string());
-                                            let thcpl_tag_label = if thcpl_rank_value == "N" {
-                                                "Non-THCPL".to_string()
-                                            } else {
-                                                format!("THCPL {}", thcpl_rank_value.clone())
-                                            };
-                                            let show_ddl_str = if is_tbd {
-                                                "TBD".to_string()
-                                            } else {
-                                                format!(
-                                                    "{} ({})",
-                                                    conf.local_ddl.clone().unwrap(),
-                                                    conf.origin_ddl.clone().unwrap(),
-                                                )
-                                            };
+
                                             view! {
-                                                <TableRow>
-                                                    <TableCell>
-                                                        <TableCellLayout>
-                                                            <div class=("conf-fin", is_finished)>
-                                                                <div class="conf-title">
-                                                                    <a
-                                                                        href=format!(
-                                                                            "https://dblp.org/db/conf/{}",
-                                                                            conf.dblp,
-                                                                        )
-                                                                        class="table-link interactive-link"
-                                                                        target="_blank"
-                                                                    >
-                                                                        {conf.title.clone()}
-                                                                    </a>
-                                                                    " "
-                                                                    {conf.year.clone()}
-                                                                    {move || {
-                                                                        let conf_title = conf.title.clone();
-                                                                        let conf_year = conf.year.clone();
-                                                                        let current_like = conf.is_like;
-                                                                        if !current_like {
-                                                                            view! {
-                                                                             <button
-                                                                                     type="button"
-                                                                                     class="favorite-toggle"
-                                                                                     aria-label="Add conference to favorites"
-                                                                                     on:click=move |_| {
-                                                                                         all_conf_list
-                                                                                             .update(|conferences| {
-                                                                                                 for item in conferences.iter_mut() {
-                                                                                                     if item.title == conf_title && item.year == conf_year {
-                                                                                                         item.is_like = true;
-                                                                                                         like_list
-                                                                                                             .update(|mut list| {
-                                                                                                                 list.insert(item.id.clone());
-                                                                                                             });
-                                                                                                         break;
-                                                                                                     }
-                                                                                                 }
-                                                                                             });
-                                                                                     }
-                                                                                 >
-                                                                                     <Icon icon=icondata::BsStar class="favorite-icon favorite-icon-inactive" />
-                                                                                 </button>
-                                                                            }
-                                                                                .into_any()
+                                                <ConferenceCard
+                                                    conf=conf
+                                                    use_english=use_english.into()
+                                                    is_mobile=is_mobile
+                                                    ccf_rank_selected=Signal::derive(move || {
+                                                        rank_list.get().contains(&ccf_rank_value)
+                                                    })
+                                                    core_rank_selected=Signal::derive(move || {
+                                                        core_rank_list.get().contains(&core_rank_value)
+                                                    })
+                                                    thcpl_rank_selected=Signal::derive(move || {
+                                                        thcpl_rank_list.get().contains(&thcpl_rank_value)
+                                                    })
+                                                    on_toggle_favorite=Callback::new(move |_| {
+                                                        all_conf_list.update(|conferences| {
+                                                            for item in conferences.iter_mut() {
+                                                                if item.title == conf_title
+                                                                    && item.year == conf_year
+                                                                {
+                                                                    item.is_like = !item.is_like;
+                                                                    like_list.update(|list| {
+                                                                        if item.is_like {
+                                                                            list.insert(item.id.clone());
                                                                         } else {
-                                                                            view! {
-                                                                                <button
-                                                                                    type="button"
-                                                                                    class="favorite-toggle"
-                                                                                    aria-label="Remove conference from favorites"
-                                                                                    on:click=move |_| {
-                                                                                        all_conf_list
-                                                                                            .update(|conferences| {
-                                                                                                for item in conferences.iter_mut() {
-                                                                                                    if item.title == conf_title && item.year == conf_year {
-                                                                                                        item.is_like = false;
-                                                                                                        like_list
-                                                                                                            .update(|mut list| {
-                                                                                                                list.remove(&item.id.clone());
-                                                                                                            });
-                                                                                                        break;
-                                                                                                    }
-                                                                                                }
-                                                                                            });
-                                                                                    }
-                                                                                >
-                                                                                    <Icon icon=icondata::BsStarFill class="favorite-icon favorite-icon-active" />
-                                                                                </button>
-                                                                            }
-                                                                                .into_any()
+                                                                            list.remove(&item.id);
                                                                         }
-                                                                    }}
-                                                                </div>
-
-                                                                <div class="conference-meta-text">
-                                                                    {conf.date.clone()} " " {conf.place.clone()}
-                                                                </div>
-
-                                                                <div class="conference-meta-text">
-                                                                    {conf.description.clone()}
-                                                                </div>
-
-                                                                <div class="tag-container">
-                                                                    <span class=move || {
-                                                                        if rank_list.get().contains(&ccf_rank_value) {
-                                                                            "tag-highlight"
-                                                                        } else {
-                                                                            ""
-                                                                        }
-                                                                    }>
-                                                                        <Tag class="plain-tag">
-                                                                            {ccf_rank_label.clone()}
-                                                                        </Tag>
-                                                                    </span>
-                                                                    " "
-                                                                    <span class=move || {
-                                                                        if core_rank_list.get().contains(&core_rank_value) {
-                                                                            "tag-highlight"
-                                                                        } else {
-                                                                            ""
-                                                                        }
-                                                                    }>
-                                                                        <Tag class="plain-tag">
-                                                                            {core_tag_label.clone()}
-                                                                        </Tag>
-                                                                    </span>
-                                                                    " "
-                                                                    <span class=move || {
-                                                                        if thcpl_rank_list.get().contains(&thcpl_rank_value) {
-                                                                            "tag-highlight"
-                                                                        } else {
-                                                                            ""
-                                                                        }
-                                                                    }>
-                                                                        <Tag class="plain-tag">
-                                                                            {thcpl_tag_label.clone()}
-                                                                        </Tag>
-                                                                    </span>
-                                                                    " "
-                                                                    {move || {
-                                                                        conf.comment
-                                                                            .as_ref()
-                                                                            .map(|comment| {
-                                                                                view! {
-                                                                                    <span class="conference-note">
-                                                                                        <b>"NOTE: "</b>
-                                                                                        {comment.clone()}
-                                                                                    </span>
-                                                                                }
-                                                                            })
-                                                                    }}
-                                                                </div>
-
-                                                                <div class="conference-supporting-text">
-                                                                    {move || {
-                                                                        if let Some(ref acc) = conf.acc_str {
-                                                                            format!("Acc. Rate: {} ", acc)
-                                                                        } else {
-                                                                            "".to_string()
-                                                                        }
-                                                                    }}
-                                                                    <span class="conference-category-chip">
-                                                                        {move || {
-                                                                            if use_english.get() {
-                                                                                conf.subname_en.clone()
-                                                                            } else {
-                                                                                conf.subname.clone()
-                                                                            }
-                                                                        }}
-                                                                    </span>
-                                                                </div>
-                                                            </div>
-                                                        </TableCellLayout>
-                                                    </TableCell>
-
-                                                    <TableCell>
-                                                        <TableCellLayout>
-
-                                                            <div class=(
-                                                                "conf-fin",
-                                                                is_finished,
-                                                            )>
-
-                                                                {move || {
-                                                                    if is_tbd {
-                                                                        view! {
-                                                                            <div class="countdown-container">
-                                                                                <div class="countdown-display">
-                                                                                    <span class="countdown-value">"TBD"</span>
-                                                                                </div>
-                                                                            </div>
-                                                                        }
-                                                                            .into_any()
-                                                                    } else {
-                                                                        view! {
-                                                                            <div class="countdown-container">
-                                                                                <div class="countdown-display">
-                                                                                    <span class="countdown-value">
-                                                                                        <CountDown remain=conf.remain.clone() />
-                                                                                        // <Icon icon=icondata::VsCalendar style="margin-left: 5px"/>
-                                                                                        <CalendarPopover
-                                                                                            google_calendar_url=conf.google_calendar_url.clone()
-                                                                                            icloud_calendar_url=conf.icloud_calendar_url.clone()
-                                                                                            is_mobile
-                                                                                        />
-                                                                                    </span>
-                                                                                </div>
-                                                                            </div>
-                                                                        }
-                                                                            .into_any()
-                                                                    }
-                                                                }}
-                                                                <div class="conference-meta-text">
-                                                                    {move || {
-                                                                        if is_tbd {
-                                                                            view! {
-                                                                                <span>
-                                                                                    "Deadline: "
-                                                                                    <a
-                                                                                        href="https://github.com/ccfddl/ccf-deadlines/pulls"
-                                                                                        class="inline-muted-link interactive-link"
-                                                                                        target="_blank"
-                                                                                    >
-                                                                                        "pull request to update"
-                                                                                    </a>
-                                                                                </span>
-                                                                            }
-                                                                                .into_any()
-                                                                        } else {
-                                                                            view! {
-                                                                                <span>{format!("Deadline: {}", show_ddl_str)}</span>
-                                                                            }
-                                                                                .into_any()
-                                                                        }
-                                                                    }}
-                                                                </div>
-                                                                <div class="conference-meta-text">
-                                                                    "website: "
-                                                                    <a
-                                                                        href=conf.link.clone()
-                                                                        class="inline-muted-link interactive-link inline-break-link"
-                                                                        target="_blank"
-                                                                    >
-                                                                        {conf.link.clone()}
-                                                                    </a>
-                                                                </div>
-                                                                {move || {
-                                                                    if is_finished || is_tbd {
-                                                                        view! {}.into_any()
-                                                                    } else {
-                                                                        view! { <TimeLine time_points=conf.ddls.clone() /> }
-                                                                            .into_any()
-                                                                    }
-                                                                }}
-                                                            </div>
-                                                        </TableCellLayout>
-                                                    </TableCell>
-                                                </TableRow>
+                                                                    });
+                                                                    break;
+                                                                }
+                                                            }
+                                                        });
+                                                    })
+                                                />
                                             }
                                         }
                                     />
@@ -1025,16 +825,6 @@ pub fn ShowTable() -> impl IntoView {
                 </div>
             </div>
 
-            <style>
-                {r#"
-                .tag-container .tag-highlight .plain-tag {
-                  background: var(--color-primary-soft) !important;
-                  color: var(--color-text-accent) !important;
-                  border: 1px solid var(--color-border-strong) !important;
-                  font-weight: 600;
-                }
-                "#}
-            </style>
         </section>
     }
 }

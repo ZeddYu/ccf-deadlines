@@ -1,6 +1,8 @@
 pub mod calendar_popover;
+pub mod category_chip;
 pub mod checkbox_button;
 pub mod conf;
+pub mod conference_card;
 pub mod countdown;
 pub mod gitbutton;
 pub mod header;
