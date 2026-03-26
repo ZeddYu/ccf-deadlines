@@ -1,0 +1,403 @@
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - link "CCFDDL® Open Deadlines" [ref=e6] [cursor=pointer]:
+        - /url: /
+        - text: CCFDDL
+        - superscript [ref=e7]: ®
+        - text: Open Deadlines
+      - generic [ref=e8]:
+        - 'button "Theme: Light. Click to switch to Dark." [ref=e9] [cursor=pointer]':
+          - img [ref=e10]
+        - link "Open the ccf-deadlines GitHub repository" [ref=e13] [cursor=pointer]:
+          - /url: https://github.com/ccfddl/ccf-deadlines
+          - img [ref=e14]
+          - img [ref=e17]
+          - generic [ref=e19]: "--"
+        - generic [ref=e20]:
+          - generic [ref=e21]: 中文
+          - generic [ref=e22]:
+            - switch [ref=e23] [cursor=pointer]
+            - generic:
+              - img
+          - generic [ref=e24]: English
+    - generic [ref=e25]:
+      - generic [ref=e26]: Worldwide conference deadline search and countdowns.
+      - generic [ref=e27]:
+        - generic [ref=e28]:
+          - text: To add or edit a conference,
+          - link "send a pull request" [ref=e29] [cursor=pointer]:
+            - /url: https://github.com/ccfddl/ccf-deadlines/pulls
+          - text: .
+        - generic [ref=e30]:
+          - text: "Tabular portal:"
+          - link "ccfddl.cn" [ref=e31] [cursor=pointer]:
+            - /url: https://ccfddl.cn/
+        - generic [ref=e32]:
+          - text: "WeChat applet:"
+          - link "scan to try" [ref=e33] [cursor=pointer]:
+            - /url: https://github.com/ccfddl/ccf-deadlines/blob/main/.readme_assets/applet_qrcode.jpg
+        - generic [ref=e34]: "*Disclaimer: The data provided by ccfddl is manually collected and for reference purposes only."
+  - generic [ref=e36]:
+    - generic [ref=e37]:
+      - generic [ref=e40]:
+        - img [ref=e42]
+        - textbox "search conference" [ref=e45]
+      - generic [ref=e46]:
+        - button "订阅" [ref=e47]:
+          - img [ref=e48]
+          - text: 订阅
+        - generic [ref=e50]:
+          - button "CCF ▾" [ref=e52] [cursor=pointer]:
+            - generic [ref=e53]: CCF
+            - generic [ref=e54]: ▾
+          - button "CORE ▾" [ref=e56] [cursor=pointer]:
+            - generic [ref=e57]: CORE
+            - generic [ref=e58]: ▾
+          - button "THCPL ▾" [ref=e60] [cursor=pointer]:
+            - generic [ref=e61]: THCPL
+            - generic [ref=e62]: ▾
+    - generic [ref=e63]:
+      - generic [ref=e64]: Deadlines are shown in Asia/Shanghai time.
+      - generic [ref=e65]:
+        - generic [ref=e66]: 共 876 条结果
+        - button "清除筛选" [ref=e67] [cursor=pointer]
+    - generic [ref=e68]:
+      - button "全选" [ref=e70] [cursor=pointer]
+      - generic [ref=e71]:
+        - button "计算机体系结构/并行与分布计算/存储系统" [pressed] [ref=e72] [cursor=pointer]
+        - button "计算机网络" [pressed] [ref=e73] [cursor=pointer]
+        - button "网络与信息安全" [pressed] [ref=e74] [cursor=pointer]
+        - button "软件工程/系统软件/程序设计语言" [pressed] [ref=e75] [cursor=pointer]
+        - button "数据库/数据挖掘/内容检索" [pressed] [ref=e76] [cursor=pointer]
+        - button "计算机科学理论" [pressed] [ref=e77] [cursor=pointer]
+        - button "计算机图形学与多媒体" [pressed] [ref=e78] [cursor=pointer]
+        - button "人工智能" [ref=e79] [cursor=pointer]
+        - button "人机交互与普适计算" [pressed] [ref=e80] [cursor=pointer]
+        - button "交叉/综合/新兴" [pressed] [ref=e81] [cursor=pointer]
+    - table [ref=e84]:
+      - rowgroup [ref=e85]:
+        - 'row "EMSOFT 2026 Remove conference from favorites October 4 - 9, 2026 Barcelona, Spain International Conference on Embedded Software CCF B Non-CORE THCPL B 交叉/综合/新兴 NOTE: abstract deadline on Mar 24, 2026. 05d 22h Deadline: 2026-03-31 19:59:59 UTC+8 (2026-03-30 23:59:59 AoE) website: https://esweek.org/emsoft/ 03/24 03/31" [ref=e86]':
+          - 'cell "EMSOFT 2026 Remove conference from favorites October 4 - 9, 2026 Barcelona, Spain International Conference on Embedded Software CCF B Non-CORE THCPL B 交叉/综合/新兴 NOTE: abstract deadline on Mar 24, 2026." [ref=e87]':
+            - generic [ref=e92]:
+              - generic [ref=e93]:
+                - link "EMSOFT" [ref=e94] [cursor=pointer]:
+                  - /url: https://dblp.org/db/conf/emsoft
+                - text: "2026"
+                - button "Remove conference from favorites" [ref=e95] [cursor=pointer]:
+                  - img [ref=e96]
+              - generic [ref=e98]: October 4 - 9, 2026 Barcelona, Spain
+              - generic [ref=e99]: International Conference on Embedded Software
+              - generic [ref=e100]:
+                - generic [ref=e101]:
+                  - generic [ref=e104]: CCF B
+                  - generic [ref=e107]: Non-CORE
+                  - generic [ref=e110]: THCPL B
+                - generic [ref=e113]: 交叉/综合/新兴
+              - generic [ref=e114]: "NOTE: abstract deadline on Mar 24, 2026."
+          - 'cell "05d 22h Deadline: 2026-03-31 19:59:59 UTC+8 (2026-03-30 23:59:59 AoE) website: https://esweek.org/emsoft/ 03/24 03/31" [ref=e115]':
+            - generic [ref=e120]:
+              - generic [ref=e123]:
+                - generic [ref=e125]: 05d 22h
+                - img [ref=e127] [cursor=pointer]
+              - generic [ref=e129]: "Deadline: 2026-03-31 19:59:59 UTC+8 (2026-03-30 23:59:59 AoE)"
+              - generic [ref=e130]:
+                - text: "website:"
+                - link "https://esweek.org/emsoft/" [ref=e131] [cursor=pointer]:
+                  - /url: https://esweek.org/emsoft/
+              - generic [ref=e135]:
+                - emphasis [ref=e138]: 03/24
+                - emphasis [ref=e140]: 03/31
+        - 'row "ASE 2026 Add conference to favorites October 12 - 16, 2026 Munich, Germany International Conference on Automated Software Engineering CCF A CORE A* THCPL A 软件工程/系统软件/程序设计语言 01d 22h Deadline: 2026-03-27 19:59:59 UTC+8 (2026-03-26 23:59:59 AoE) website: https://conf.researchr.org/home/ase-2026 03/27" [ref=e144]':
+          - cell "ASE 2026 Add conference to favorites October 12 - 16, 2026 Munich, Germany International Conference on Automated Software Engineering CCF A CORE A* THCPL A 软件工程/系统软件/程序设计语言" [ref=e145]:
+            - generic [ref=e150]:
+              - generic [ref=e151]:
+                - link "ASE" [ref=e152] [cursor=pointer]:
+                  - /url: https://dblp.org/db/conf/kbse
+                - text: "2026"
+                - button "Add conference to favorites" [ref=e153] [cursor=pointer]:
+                  - img [ref=e154]
+              - generic [ref=e156]: October 12 - 16, 2026 Munich, Germany
+              - generic [ref=e157]: International Conference on Automated Software Engineering
+              - generic [ref=e158]:
+                - generic [ref=e159]:
+                  - generic [ref=e162]: CCF A
+                  - generic [ref=e165]: CORE A*
+                  - generic [ref=e168]: THCPL A
+                - generic [ref=e171]: 软件工程/系统软件/程序设计语言
+          - 'cell "01d 22h Deadline: 2026-03-27 19:59:59 UTC+8 (2026-03-26 23:59:59 AoE) website: https://conf.researchr.org/home/ase-2026 03/27" [ref=e172]':
+            - generic [ref=e177]:
+              - generic [ref=e180]:
+                - generic [ref=e182]: 01d 22h
+                - img [ref=e184] [cursor=pointer]
+              - generic [ref=e186]: "Deadline: 2026-03-27 19:59:59 UTC+8 (2026-03-26 23:59:59 AoE)"
+              - generic [ref=e187]:
+                - text: "website:"
+                - link "https://conf.researchr.org/home/ase-2026" [ref=e188] [cursor=pointer]:
+                  - /url: https://conf.researchr.org/home/ase-2026
+              - emphasis [ref=e196]: 03/27
+        - 'row "BlockSys 2026 Add conference to favorites July 29-31, 2026 Chengdu, China International Conference on Blockchain, Artificial Intelligence, and Trustworthy Systems CCF C Non-CORE Non-THCPL 网络与信息安全 05d 02h Deadline: 2026-03-30 23:59:59 UTC+8 (2026-03-30 23:59:59 UTC+8) website: https://blocksys.info/2026/ 03/30" [ref=e200]':
+          - cell "BlockSys 2026 Add conference to favorites July 29-31, 2026 Chengdu, China International Conference on Blockchain, Artificial Intelligence, and Trustworthy Systems CCF C Non-CORE Non-THCPL 网络与信息安全" [ref=e201]:
+            - generic [ref=e206]:
+              - generic [ref=e207]:
+                - link "BlockSys" [ref=e208] [cursor=pointer]:
+                  - /url: https://dblp.org/db/conf/blocksys
+                - text: "2026"
+                - button "Add conference to favorites" [ref=e209] [cursor=pointer]:
+                  - img [ref=e210]
+              - generic [ref=e212]: July 29-31, 2026 Chengdu, China
+              - generic [ref=e213]: International Conference on Blockchain, Artificial Intelligence, and Trustworthy Systems
+              - generic [ref=e214]:
+                - generic [ref=e215]:
+                  - generic [ref=e218]: CCF C
+                  - generic [ref=e221]: Non-CORE
+                  - generic [ref=e224]: Non-THCPL
+                - generic [ref=e227]: 网络与信息安全
+          - 'cell "05d 02h Deadline: 2026-03-30 23:59:59 UTC+8 (2026-03-30 23:59:59 UTC+8) website: https://blocksys.info/2026/ 03/30" [ref=e228]':
+            - generic [ref=e233]:
+              - generic [ref=e236]:
+                - generic [ref=e238]: 05d 02h
+                - img [ref=e240] [cursor=pointer]
+              - generic [ref=e242]: "Deadline: 2026-03-30 23:59:59 UTC+8 (2026-03-30 23:59:59 UTC+8)"
+              - generic [ref=e243]:
+                - text: "website:"
+                - link "https://blocksys.info/2026/" [ref=e244] [cursor=pointer]:
+                  - /url: https://blocksys.info/2026/
+              - emphasis [ref=e252]: 03/30
+        - 'row "IEEE VIS 2026 Add conference to favorites November 9-13, 2026 Boston, Massachusetts, USA IEEE Visualization Conference CCF A CORE A THCPL A 计算机图形学与多媒体 NOTE: abstract deadline on Mar 22, 2026. 06d 22h Deadline: 2026-04-01 19:59:59 UTC+8 (2026-03-31 23:59:59 AoE) website: https://ieeevis.org/year/2026/welcome 03/22 04/01" [ref=e256]':
+          - 'cell "IEEE VIS 2026 Add conference to favorites November 9-13, 2026 Boston, Massachusetts, USA IEEE Visualization Conference CCF A CORE A THCPL A 计算机图形学与多媒体 NOTE: abstract deadline on Mar 22, 2026." [ref=e257]':
+            - generic [ref=e262]:
+              - generic [ref=e263]:
+                - link "IEEE VIS" [ref=e264] [cursor=pointer]:
+                  - /url: https://dblp.org/db/conf/visualization
+                - text: "2026"
+                - button "Add conference to favorites" [ref=e265] [cursor=pointer]:
+                  - img [ref=e266]
+              - generic [ref=e268]: November 9-13, 2026 Boston, Massachusetts, USA
+              - generic [ref=e269]: IEEE Visualization Conference
+              - generic [ref=e270]:
+                - generic [ref=e271]:
+                  - generic [ref=e274]: CCF A
+                  - generic [ref=e277]: CORE A
+                  - generic [ref=e280]: THCPL A
+                - generic [ref=e283]: 计算机图形学与多媒体
+              - generic [ref=e284]: "NOTE: abstract deadline on Mar 22, 2026."
+          - 'cell "06d 22h Deadline: 2026-04-01 19:59:59 UTC+8 (2026-03-31 23:59:59 AoE) website: https://ieeevis.org/year/2026/welcome 03/22 04/01" [ref=e285]':
+            - generic [ref=e290]:
+              - generic [ref=e293]:
+                - generic [ref=e295]: 06d 22h
+                - img [ref=e297] [cursor=pointer]
+              - generic [ref=e299]: "Deadline: 2026-04-01 19:59:59 UTC+8 (2026-03-31 23:59:59 AoE)"
+              - generic [ref=e300]:
+                - text: "website:"
+                - link "https://ieeevis.org/year/2026/welcome" [ref=e301] [cursor=pointer]:
+                  - /url: https://ieeevis.org/year/2026/welcome
+              - generic [ref=e305]:
+                - emphasis [ref=e308]: 03/22
+                - emphasis [ref=e310]: 04/01
+        - 'row "APWeb-WAIM 2026 Add conference to favorites September 7-9, 2026 Danang, Vietnam APWeb-WAIM joint international conference on Web and Big Data CCF C CORE C Non-THCPL 数据库/数据挖掘/内容检索 NOTE: first round 06d 22h Deadline: 2026-04-01 19:59:59 UTC+8 (2026-03-31 23:59:59 AoE) website: https://conferences.sigappfr.org/apweb2026/ 04/01 05/05" [ref=e314]':
+          - 'cell "APWeb-WAIM 2026 Add conference to favorites September 7-9, 2026 Danang, Vietnam APWeb-WAIM joint international conference on Web and Big Data CCF C CORE C Non-THCPL 数据库/数据挖掘/内容检索 NOTE: first round" [ref=e315]':
+            - generic [ref=e320]:
+              - generic [ref=e321]:
+                - link "APWeb-WAIM" [ref=e322] [cursor=pointer]:
+                  - /url: https://dblp.org/db/conf/APWeb
+                - text: "2026"
+                - button "Add conference to favorites" [ref=e323] [cursor=pointer]:
+                  - img [ref=e324]
+              - generic [ref=e326]: September 7-9, 2026 Danang, Vietnam
+              - generic [ref=e327]: APWeb-WAIM joint international conference on Web and Big Data
+              - generic [ref=e328]:
+                - generic [ref=e329]:
+                  - generic [ref=e332]: CCF C
+                  - generic [ref=e335]: CORE C
+                  - generic [ref=e338]: Non-THCPL
+                - generic [ref=e341]: 数据库/数据挖掘/内容检索
+              - generic [ref=e342]: "NOTE: first round"
+          - 'cell "06d 22h Deadline: 2026-04-01 19:59:59 UTC+8 (2026-03-31 23:59:59 AoE) website: https://conferences.sigappfr.org/apweb2026/ 04/01 05/05" [ref=e343]':
+            - generic [ref=e348]:
+              - generic [ref=e351]:
+                - generic [ref=e353]: 06d 22h
+                - img [ref=e355] [cursor=pointer]
+              - generic [ref=e357]: "Deadline: 2026-04-01 19:59:59 UTC+8 (2026-03-31 23:59:59 AoE)"
+              - generic [ref=e358]:
+                - text: "website:"
+                - link "https://conferences.sigappfr.org/apweb2026/" [ref=e359] [cursor=pointer]:
+                  - /url: https://conferences.sigappfr.org/apweb2026/
+              - generic [ref=e363]:
+                - emphasis [ref=e366]: 04/01
+                - emphasis [ref=e368]: 05/05
+        - 'row "UIST 2026 Add conference to favorites November 2 - 5, 2026 GM Renaissance Center, Detroit, MI, USA ACM Symposium on User Interface Software and Technology CCF A CORE A* THCPL A Acc. Rate: 24.01%(146/608 24'') 人机交互与普适计算 NOTE: abstract deadline on Mar 25, 2026. 06d 22h Deadline: 2026-04-01 19:59:59 UTC+8 (2026-03-31 23:59:59 AoE) website: https://uist.acm.org/2026/ 03/25 04/01" [ref=e372]':
+          - 'cell "UIST 2026 Add conference to favorites November 2 - 5, 2026 GM Renaissance Center, Detroit, MI, USA ACM Symposium on User Interface Software and Technology CCF A CORE A* THCPL A Acc. Rate: 24.01%(146/608 24'') 人机交互与普适计算 NOTE: abstract deadline on Mar 25, 2026." [ref=e373]':
+            - generic [ref=e378]:
+              - generic [ref=e379]:
+                - link "UIST" [ref=e380] [cursor=pointer]:
+                  - /url: https://dblp.org/db/conf/uist
+                - text: "2026"
+                - button "Add conference to favorites" [ref=e381] [cursor=pointer]:
+                  - img [ref=e382]
+              - generic [ref=e384]: November 2 - 5, 2026 GM Renaissance Center, Detroit, MI, USA
+              - generic [ref=e385]: ACM Symposium on User Interface Software and Technology
+              - generic [ref=e386]:
+                - generic [ref=e387]:
+                  - generic [ref=e390]: CCF A
+                  - generic [ref=e393]: CORE A*
+                  - generic [ref=e396]: THCPL A
+                - generic [ref=e397]:
+                  - generic [ref=e399]: "Acc. Rate: 24.01%(146/608 24')"
+                  - generic [ref=e401]: 人机交互与普适计算
+              - generic [ref=e402]: "NOTE: abstract deadline on Mar 25, 2026."
+          - 'cell "06d 22h Deadline: 2026-04-01 19:59:59 UTC+8 (2026-03-31 23:59:59 AoE) website: https://uist.acm.org/2026/ 03/25 04/01" [ref=e403]':
+            - generic [ref=e408]:
+              - generic [ref=e411]:
+                - generic [ref=e413]: 06d 22h
+                - img [ref=e415] [cursor=pointer]
+              - generic [ref=e417]: "Deadline: 2026-04-01 19:59:59 UTC+8 (2026-03-31 23:59:59 AoE)"
+              - generic [ref=e418]:
+                - text: "website:"
+                - link "https://uist.acm.org/2026/" [ref=e419] [cursor=pointer]:
+                  - /url: https://uist.acm.org/2026/
+              - generic [ref=e423]:
+                - emphasis [ref=e426]: 03/25
+                - emphasis [ref=e428]: 04/01
+        - 'row "GLOBECOM 2026 Add conference to favorites December 7-11, 2026 Macao, China IEEE Global Communications Conference CCF C CORE B THCPL B Acc. Rate: 39.7%(911/2295 24'') 计算机网络 07d 02h Deadline: 2026-04-01 23:59:59 UTC+8 (2026-04-01 23:59:59 UTC+8) website: https://globecom2026.ieee-globecom.org/ 04/01" [ref=e432]':
+          - 'cell "GLOBECOM 2026 Add conference to favorites December 7-11, 2026 Macao, China IEEE Global Communications Conference CCF C CORE B THCPL B Acc. Rate: 39.7%(911/2295 24'') 计算机网络" [ref=e433]':
+            - generic [ref=e438]:
+              - generic [ref=e439]:
+                - link "GLOBECOM" [ref=e440] [cursor=pointer]:
+                  - /url: https://dblp.org/db/conf/globecom
+                - text: "2026"
+                - button "Add conference to favorites" [ref=e441] [cursor=pointer]:
+                  - img [ref=e442]
+              - generic [ref=e444]: December 7-11, 2026 Macao, China
+              - generic [ref=e445]: IEEE Global Communications Conference
+              - generic [ref=e446]:
+                - generic [ref=e447]:
+                  - generic [ref=e450]: CCF C
+                  - generic [ref=e453]: CORE B
+                  - generic [ref=e456]: THCPL B
+                - generic [ref=e457]:
+                  - generic [ref=e459]: "Acc. Rate: 39.7%(911/2295 24')"
+                  - generic [ref=e461]: 计算机网络
+          - 'cell "07d 02h Deadline: 2026-04-01 23:59:59 UTC+8 (2026-04-01 23:59:59 UTC+8) website: https://globecom2026.ieee-globecom.org/ 04/01" [ref=e462]':
+            - generic [ref=e467]:
+              - generic [ref=e470]:
+                - generic [ref=e472]: 07d 02h
+                - img [ref=e474] [cursor=pointer]
+              - generic [ref=e476]: "Deadline: 2026-04-01 23:59:59 UTC+8 (2026-04-01 23:59:59 UTC+8)"
+              - generic [ref=e477]:
+                - text: "website:"
+                - link "https://globecom2026.ieee-globecom.org/" [ref=e478] [cursor=pointer]:
+                  - /url: https://globecom2026.ieee-globecom.org/
+              - emphasis [ref=e486]: 04/01
+        - 'row "FOCS 2026 Add conference to favorites November 8-11, 2026 New York City, NY, USA IEEE Symposium on Foundations of Computer Science CCF A CORE A* THCPL A 计算机科学理论 07d 07h Deadline: 2026-04-02 05:00:00 UTC+8 (2026-04-01 21:00:00 UTC) website: https://sanjeevkhanna.org/FOCS2026_CFP.html 04/02" [ref=e490]':
+          - cell "FOCS 2026 Add conference to favorites November 8-11, 2026 New York City, NY, USA IEEE Symposium on Foundations of Computer Science CCF A CORE A* THCPL A 计算机科学理论" [ref=e491]:
+            - generic [ref=e496]:
+              - generic [ref=e497]:
+                - link "FOCS" [ref=e498] [cursor=pointer]:
+                  - /url: https://dblp.org/db/conf/focs
+                - text: "2026"
+                - button "Add conference to favorites" [ref=e499] [cursor=pointer]:
+                  - img [ref=e500]
+              - generic [ref=e502]: November 8-11, 2026 New York City, NY, USA
+              - generic [ref=e503]: IEEE Symposium on Foundations of Computer Science
+              - generic [ref=e504]:
+                - generic [ref=e505]:
+                  - generic [ref=e508]: CCF A
+                  - generic [ref=e511]: CORE A*
+                  - generic [ref=e514]: THCPL A
+                - generic [ref=e517]: 计算机科学理论
+          - 'cell "07d 07h Deadline: 2026-04-02 05:00:00 UTC+8 (2026-04-01 21:00:00 UTC) website: https://sanjeevkhanna.org/FOCS2026_CFP.html 04/02" [ref=e518]':
+            - generic [ref=e523]:
+              - generic [ref=e526]:
+                - generic [ref=e528]: 07d 07h
+                - img [ref=e530] [cursor=pointer]
+              - generic [ref=e532]: "Deadline: 2026-04-02 05:00:00 UTC+8 (2026-04-01 21:00:00 UTC)"
+              - generic [ref=e533]:
+                - text: "website:"
+                - link "https://sanjeevkhanna.org/FOCS2026_CFP.html" [ref=e534] [cursor=pointer]:
+                  - /url: https://sanjeevkhanna.org/FOCS2026_CFP.html
+              - emphasis [ref=e542]: 04/02
+        - 'row "ACM MM 2026 Add conference to favorites November 10-14, 2026 Rio de Janeiro, Brazil ACM International Conference on Multimedia CCF A CORE A* THCPL A Acc. Rate: 24.6%(902/3669 23'') 计算机图形学与多媒体 NOTE: abstract deadline on Mar 26, 2026. 07d 22h Deadline: 2026-04-02 19:59:59 UTC+8 (2026-04-01 23:59:59 AoE) website: https://2026.acmmm.org/ 03/26 04/02" [ref=e546]':
+          - 'cell "ACM MM 2026 Add conference to favorites November 10-14, 2026 Rio de Janeiro, Brazil ACM International Conference on Multimedia CCF A CORE A* THCPL A Acc. Rate: 24.6%(902/3669 23'') 计算机图形学与多媒体 NOTE: abstract deadline on Mar 26, 2026." [ref=e547]':
+            - generic [ref=e552]:
+              - generic [ref=e553]:
+                - link "ACM MM" [ref=e554] [cursor=pointer]:
+                  - /url: https://dblp.org/db/conf/mm
+                - text: "2026"
+                - button "Add conference to favorites" [ref=e555] [cursor=pointer]:
+                  - img [ref=e556]
+              - generic [ref=e558]: November 10-14, 2026 Rio de Janeiro, Brazil
+              - generic [ref=e559]: ACM International Conference on Multimedia
+              - generic [ref=e560]:
+                - generic [ref=e561]:
+                  - generic [ref=e564]: CCF A
+                  - generic [ref=e567]: CORE A*
+                  - generic [ref=e570]: THCPL A
+                - generic [ref=e571]:
+                  - generic [ref=e573]: "Acc. Rate: 24.6%(902/3669 23')"
+                  - generic [ref=e575]: 计算机图形学与多媒体
+              - generic [ref=e576]: "NOTE: abstract deadline on Mar 26, 2026."
+          - 'cell "07d 22h Deadline: 2026-04-02 19:59:59 UTC+8 (2026-04-01 23:59:59 AoE) website: https://2026.acmmm.org/ 03/26 04/02" [ref=e577]':
+            - generic [ref=e582]:
+              - generic [ref=e585]:
+                - generic [ref=e587]: 07d 22h
+                - img [ref=e589] [cursor=pointer]
+              - generic [ref=e591]: "Deadline: 2026-04-02 19:59:59 UTC+8 (2026-04-01 23:59:59 AoE)"
+              - generic [ref=e592]:
+                - text: "website:"
+                - link "https://2026.acmmm.org/" [ref=e593] [cursor=pointer]:
+                  - /url: https://2026.acmmm.org/
+              - generic [ref=e597]:
+                - emphasis [ref=e600]: 03/26
+                - emphasis [ref=e602]: 04/02
+        - 'row "SOSP 2026 Add conference to favorites September 29 - October 2, 2026 Clarion Congress Hotel Prague, Prague, Czechia ACM Symposium on Operating Systems Principles CCF A CORE A* THCPL A Acc. Rate: 17.7%(65/368 25'') 软件工程/系统软件/程序设计语言 NOTE: abstract deadline on Mar 27, 2026. 07d 22h Deadline: 2026-04-02 19:59:59 UTC+8 (2026-04-01 23:59:59 AoE) website: https://sigops.org/s/conferences/sosp/2026/index.html 03/27 04/02" [ref=e606]':
+          - 'cell "SOSP 2026 Add conference to favorites September 29 - October 2, 2026 Clarion Congress Hotel Prague, Prague, Czechia ACM Symposium on Operating Systems Principles CCF A CORE A* THCPL A Acc. Rate: 17.7%(65/368 25'') 软件工程/系统软件/程序设计语言 NOTE: abstract deadline on Mar 27, 2026." [ref=e607]':
+            - generic [ref=e612]:
+              - generic [ref=e613]:
+                - link "SOSP" [ref=e614] [cursor=pointer]:
+                  - /url: https://dblp.org/db/conf/sosp
+                - text: "2026"
+                - button "Add conference to favorites" [ref=e615] [cursor=pointer]:
+                  - img [ref=e616]
+              - generic [ref=e618]: September 29 - October 2, 2026 Clarion Congress Hotel Prague, Prague, Czechia
+              - generic [ref=e619]: ACM Symposium on Operating Systems Principles
+              - generic [ref=e620]:
+                - generic [ref=e621]:
+                  - generic [ref=e624]: CCF A
+                  - generic [ref=e627]: CORE A*
+                  - generic [ref=e630]: THCPL A
+                - generic [ref=e631]:
+                  - generic [ref=e633]: "Acc. Rate: 17.7%(65/368 25')"
+                  - generic [ref=e635]: 软件工程/系统软件/程序设计语言
+              - generic [ref=e636]: "NOTE: abstract deadline on Mar 27, 2026."
+          - 'cell "07d 22h Deadline: 2026-04-02 19:59:59 UTC+8 (2026-04-01 23:59:59 AoE) website: https://sigops.org/s/conferences/sosp/2026/index.html 03/27 04/02" [ref=e637]':
+            - generic [ref=e642]:
+              - generic [ref=e645]:
+                - generic [ref=e647]: 07d 22h
+                - img [ref=e649] [cursor=pointer]
+              - generic [ref=e651]: "Deadline: 2026-04-02 19:59:59 UTC+8 (2026-04-01 23:59:59 AoE)"
+              - generic [ref=e652]:
+                - text: "website:"
+                - link "https://sigops.org/s/conferences/sosp/2026/index.html" [ref=e653] [cursor=pointer]:
+                  - /url: https://sigops.org/s/conferences/sosp/2026/index.html
+              - generic [ref=e657]:
+                - emphasis [ref=e660]: 03/27
+                - emphasis [ref=e662]: 04/02
+    - generic [ref=e666]:
+      - generic [ref=e668]:
+        - text: Maintained by @ccfddl. If you find it useful, star or follow
+        - link "@ccfddl" [ref=e669] [cursor=pointer]:
+          - /url: https://github.com/ccfddl
+        - text: on Github.
+      - generic [ref=e671]:
+        - button [disabled] [ref=e672]:
+          - img [ref=e673]
+        - button "1" [ref=e675]
+        - button "2" [ref=e676]
+        - button "3" [ref=e677]
+        - button "4" [ref=e678]
+        - button "5" [ref=e679]
+        - generic [ref=e680]: ...
+        - button "88" [ref=e681]
+        - button [ref=e682]:
+          - img [ref=e683]

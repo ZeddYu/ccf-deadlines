@@ -63,11 +63,6 @@ pub fn Header(theme_controller: ThemeController, use_english: RwSignal<bool>) ->
                     "\u{00a0}Open Deadlines"
                 </a>
                 <div class="header-brand-actions">
-                    <div class="header-language-switch">
-                        <span class=("is_active", move || !use_english.get())>"中文"</span>
-                        <Switch checked=use_english />
-                        <span class=("is_active", move || use_english.get())>"English"</span>
-                    </div>
                     <button
                         type="button"
                         class="header-theme-button"
@@ -87,6 +82,11 @@ pub fn Header(theme_controller: ThemeController, use_english: RwSignal<bool>) ->
                     </button>
                     <div class="header-git-button">
                         <GitButton />
+                    </div>
+                    <div class="header-language-switch">
+                        <span class=("is_active", move || !use_english.get())>"中文"</span>
+                        <Switch checked=use_english />
+                        <span class=("is_active", move || use_english.get())>"English"</span>
                     </div>
                 </div>
             </div>
@@ -123,24 +123,30 @@ pub fn Header(theme_controller: ThemeController, use_english: RwSignal<bool>) ->
                             "scan to try"
                         </a>
                     </span>
-                    <span>
-                        "*Disclaimer: The data provided by ccfddl is manually collected and for reference purposes only."
-                    </span>
                 </div>
             </div>
 
-            <div class="header-announcement-row">
-                {move || {
-                    show_latest_conf
-                        .get()
-                        .then(|| {
-                            view! {
-                                <span class="header-announcement-label">"Latest update"</span>
-                                <span class="header-announcement-text">{show_str.get()}</span>
-                            }
-                        })
-                }}
+            <div class="header-disclaimer-row">
+                <p class="header-disclaimer-message">
+                    "*Disclaimer: The data provided by ccfddl is manually collected and for reference purposes only."
+                </p>
             </div>
+
+            {move || {
+                show_latest_conf
+                    .get()
+                    .then(|| {
+                        view! {
+                            <div class="header-announcement-row" role="status" aria-live="polite">
+                                <div class="header-announcement-content">
+                                    <span class="header-announcement-label">"Latest update"</span>
+                                    <span class="header-announcement-text">{show_str.get()}</span>
+                                    <span class="header-announcement-badge">"New"</span>
+                                </div>
+                            </div>
+                        }
+                    })
+            }}
         </section>
     }
 }
@@ -168,4 +174,95 @@ async fn fetch_latest_commit() -> Result<(bool, String), Box<dyn std::error::Err
     }
 
     Ok((false, String::new()))
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn header_rows_match_phase1_structure() {
+        const HEADER_SOURCE: &str = include_str!("header.rs");
+
+        fn index_of(haystack: &str, needle: &str) -> usize {
+            haystack
+                .find(needle)
+                .unwrap_or_else(|| panic!("expected to find `{needle}` in Header source"))
+        }
+
+        let brand_row = index_of(HEADER_SOURCE, "class=\"header-brand-row\"");
+        let subtitle_row = index_of(HEADER_SOURCE, "class=\"header-subtitle-row\"");
+        let disclaimer_row = index_of(HEADER_SOURCE, "class=\"header-disclaimer-row\"");
+        let announcement_row = index_of(HEADER_SOURCE, "class=\"header-announcement-row\"");
+        index_of(HEADER_SOURCE, "class=\"header-language-switch\"");
+        index_of(HEADER_SOURCE, "class=\"header-brand-actions\"");
+
+        assert!(brand_row < subtitle_row);
+        assert!(subtitle_row < disclaimer_row);
+        assert!(disclaimer_row < announcement_row);
+    }
+
+    #[test]
+    fn header_language_switch_still_uses_use_english_signal() {
+        const HEADER_SOURCE: &str = include_str!("header.rs");
+
+        assert!(HEADER_SOURCE.contains("pub fn Header(theme_controller: ThemeController, use_english: RwSignal<bool>) -> impl IntoView"));
+        assert!(HEADER_SOURCE.contains("<Switch checked=use_english />"));
+        assert!(HEADER_SOURCE.contains("class=\"header-language-switch\""));
+    }
+
+    #[test]
+    fn header_brand_actions_follow_phase1_order() {
+        const HEADER_SOURCE: &str = include_str!("header.rs");
+        let actions_start = HEADER_SOURCE
+            .find("<div class=\"header-brand-actions\">")
+            .expect("expected header-brand-actions block");
+        let actions_end = HEADER_SOURCE[actions_start..]
+            .find("<div class=\"header-subtitle-row\">")
+            .map(|offset| actions_start + offset)
+            .expect("expected end of header-brand-actions block");
+        let actions_source = &HEADER_SOURCE[actions_start..actions_end];
+
+        fn index_of(haystack: &str, needle: &str) -> usize {
+            haystack
+                .find(needle)
+                .unwrap_or_else(|| panic!("expected to find `{needle}` in header-brand-actions block"))
+        }
+
+        let theme_button = index_of(actions_source, "class=\"header-theme-button\"");
+        let git_button = index_of(actions_source, "class=\"header-git-button\"");
+        let language_switch = index_of(actions_source, "class=\"header-language-switch\"");
+
+        assert!(theme_button < git_button);
+        assert!(git_button < language_switch);
+    }
+
+    #[test]
+    fn header_disclaimer_and_announcement_structure_is_present() {
+        const HEADER_SOURCE: &str = include_str!("header.rs");
+
+        assert!(HEADER_SOURCE.contains("class=\"header-disclaimer-row\""));
+        assert!(HEADER_SOURCE.contains("class=\"header-disclaimer-message\""));
+        assert!(HEADER_SOURCE.contains("class=\"header-announcement-content\""));
+        assert!(HEADER_SOURCE.contains("class=\"header-announcement-badge\""));
+    }
+
+    #[test]
+    fn header_rows_have_phase1_surface_hierarchy_in_styles() {
+        const STYLES_SOURCE: &str = include_str!("../../public/styles.css");
+
+        assert!(STYLES_SOURCE.contains(".hero-header {"));
+        assert!(STYLES_SOURCE.contains(".header-brand-row {"));
+        assert!(STYLES_SOURCE.contains(".header-subtitle-row {"));
+        assert!(STYLES_SOURCE.contains(".header-disclaimer-row {"));
+        assert!(STYLES_SOURCE.contains(".header-announcement-row {"));
+        assert!(STYLES_SOURCE.contains(".header-language-switch {"));
+    }
+
+    #[test]
+    fn header_brand_actions_base_rule_is_defined_once_in_styles() {
+        const STYLES_SOURCE: &str = include_str!("../../public/styles.css");
+        const HEADER_BRAND_ACTIONS_BASE_RULE: &str = ".header-brand-actions {\n    display: inline-flex;\n    align-items: center;\n    gap: 10px;\n    margin-left: auto;\n}";
+        let normalized_styles = STYLES_SOURCE.replace("\r\n", "\n");
+
+        assert_eq!(normalized_styles.matches(HEADER_BRAND_ACTIONS_BASE_RULE).count(), 1);
+    }
 }

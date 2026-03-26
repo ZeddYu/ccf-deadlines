@@ -1,0 +1,4 @@
+Total messages: 2 (Errors: 1, Warnings: 1)
+
+[WARNING] The `integrity` attribute is currently ignored for preload destinations that do not support subresource integrity. See https://crbug.com/981419 for more information @ http://127.0.0.1:4173/:52
+[ERROR] Failed to load resource: net::ERR_CONNECTION_CLOSED @ https://www.googletagmanager.com/gtag/js?id=G-RY374M6FJ8:0

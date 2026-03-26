@@ -3,8 +3,10 @@ use crate::components::checkbox_button::*;
 use crate::components::conf::ConfItem;
 use crate::components::conf::*;
 use crate::components::conference_card::ConferenceCard;
+use crate::components::results_meta::ResultsMeta;
 use crate::components::subscription_modal::*;
 use crate::components::timezone::*;
+use crate::components::top_toolbar::TopToolbar;
 use chrono::{DateTime, FixedOffset};
 use leptos::prelude::*;
 use serde_json;
@@ -31,9 +33,81 @@ fn toggle_category_selection(selected: &mut HashSet<String>, sub: &str) {
     }
 }
 
+fn has_active_phase1_filters(
+    input_value: &str,
+    check_list: &HashSet<String>,
+    rank_list: &HashSet<String>,
+    core_rank_list: &HashSet<String>,
+    thcpl_rank_list: &HashSet<String>,
+) -> bool {
+    !input_value.trim().is_empty()
+        || !check_list.is_empty()
+        || !rank_list.is_empty()
+        || !core_rank_list.is_empty()
+        || !thcpl_rank_list.is_empty()
+}
+
+fn clear_phase1_filters(
+    input_value: RwSignal<String>,
+    check_list: RwSignal<HashSet<String>>,
+    rank_list: RwSignal<HashSet<String>>,
+    core_rank_list: RwSignal<HashSet<String>>,
+    thcpl_rank_list: RwSignal<HashSet<String>>,
+) {
+    input_value.set(String::new());
+    check_list.set(HashSet::new());
+    rank_list.set(HashSet::new());
+    core_rank_list.set(HashSet::new());
+    thcpl_rank_list.set(HashSet::new());
+}
+
+fn filter_conferences(
+    conferences: Vec<ConfItem>,
+    check_list: &HashSet<String>,
+    input_value: &str,
+    rank_list: &HashSet<String>,
+    core_rank_list: &HashSet<String>,
+    thcpl_rank_list: &HashSet<String>,
+) -> Vec<ConfItem> {
+    let mut filtered_list = conferences;
+
+    if !check_list.is_empty() {
+        filtered_list.retain(|item| check_list.contains(&item.sub.to_uppercase()));
+    }
+
+    if !rank_list.is_empty() {
+        filtered_list.retain(|item| rank_list.contains(&item.rank));
+    }
+
+    if !core_rank_list.is_empty() {
+        filtered_list.retain(|item| {
+            let core_rank = item.corerank.as_deref().unwrap_or("N");
+            core_rank_list.contains(core_rank)
+        });
+    }
+
+    if !thcpl_rank_list.is_empty() {
+        filtered_list.retain(|item| {
+            let thcpl_rank = item.thcplrank.as_deref().unwrap_or("N");
+            thcpl_rank_list.contains(thcpl_rank)
+        });
+    }
+
+    if !input_value.is_empty() {
+        let input_lower = input_value.to_lowercase();
+        filtered_list.retain(|item| {
+            item.id.to_lowercase().contains(&input_lower)
+                || item.title.to_lowercase().contains(&input_lower)
+        });
+    }
+
+    filtered_list
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chrono::FixedOffset;
 
     fn categories() -> Vec<Category> {
         vec![
@@ -50,6 +124,44 @@ mod tests {
         ]
     }
 
+    fn sample_conf(id: &str, status: &str, is_like: bool) -> ConfItem {
+        ConfItem {
+            title: format!("Conf {id}"),
+            description: "A conference".to_string(),
+            sub: "AI".to_string(),
+            rank: "A".to_string(),
+            corerank: Some("A*".to_string()),
+            thcplrank: Some("B".to_string()),
+            displayrank: "CCF A".to_string(),
+            dblp: "sigmod".to_string(),
+            year: 2026,
+            id: id.to_string(),
+            link: "https://example.com".to_string(),
+            abstract_deadline: None,
+            deadline: "2026-04-01 23:59:59".to_string(),
+            comment: None,
+            timezone: "UTC+0".to_string(),
+            date: "Apr 1-3, 2026".to_string(),
+            place: "Paris".to_string(),
+            status: status.to_string(),
+            is_like,
+            remain: 42,
+            local_ddl: Some("2026-04-01 23:59:59 UTC+0".to_string()),
+            origin_ddl: Some("2026-04-01 23:59:59 UTC+0".to_string()),
+            subname: "人工智能".to_string(),
+            subname_en: "Artificial Intelligence".to_string(),
+            google_calendar_url: Some("https://calendar.google.com".to_string()),
+            icloud_calendar_url: Some("https://icloud.com".to_string()),
+            acc_str: Some("25%".to_string()),
+            ddls: vec![TimePoint {
+                timepoint: chrono::DateTime::parse_from_rfc3339("2026-04-01T23:59:59+00:00")
+                    .unwrap()
+                    .with_timezone(&FixedOffset::east_opt(0).unwrap()),
+                r#type: 1,
+            }],
+        }
+    }
+
     #[test]
     fn detects_when_all_categories_are_selected() {
         let selected = HashSet::from(["AI".to_string(), "DB".to_string()]);
@@ -58,21 +170,300 @@ mod tests {
     }
 
     #[test]
+    fn phase2_category_chip_section_uses_category_chip_component() {
+        const SHOWTABLE_SOURCE: &str = include_str!("showtable.rs");
+
+        let showtable_start = SHOWTABLE_SOURCE
+            .rfind("pub fn ShowTable(use_english: RwSignal<bool>) -> impl IntoView {")
+            .expect("expected ShowTable component definition");
+        let showtable_end = SHOWTABLE_SOURCE
+            .rfind("static UTC_MAP: OnceLock<HashMap<String, String>> = OnceLock::new();")
+            .expect("expected end of ShowTable component source");
+        let component_source = &SHOWTABLE_SOURCE[showtable_start..showtable_end];
+
+        fn index_of(haystack: &str, needle: &str) -> usize {
+            haystack
+                .find(needle)
+                .unwrap_or_else(|| panic!("expected to find `{needle}` in ShowTable component"))
+        }
+
+        let chip_section = index_of(component_source, "class=\"category-chip-section\"");
+        let actions_row = index_of(component_source, "class=\"category-actions-row\"");
+        let chip_grid = index_of(component_source, "class=\"category-chip-grid\"");
+        let action_chip = index_of(component_source, "\"category-chip category-chip-action\"");
+        let category_chip = index_of(component_source, "<CategoryChip");
+        let table_container = index_of(component_source, "class=\"table-container\"");
+
+        assert!(chip_section < table_container);
+        assert!(chip_section < actions_row);
+        assert!(actions_row < chip_grid);
+        assert!(actions_row < category_chip);
+        assert!(action_chip < category_chip);
+    }
+
+    #[test]
+    fn phase2_conference_list_uses_conference_card_component() {
+        const SHOWTABLE_SOURCE: &str = include_str!("showtable.rs");
+
+        let showtable_start = SHOWTABLE_SOURCE
+            .rfind("pub fn ShowTable(use_english: RwSignal<bool>) -> impl IntoView {")
+            .expect("expected ShowTable component definition");
+        let showtable_end = SHOWTABLE_SOURCE
+            .rfind("static UTC_MAP: OnceLock<HashMap<String, String>> = OnceLock::new();")
+            .expect("expected end of ShowTable component source");
+        let component_source = &SHOWTABLE_SOURCE[showtable_start..showtable_end];
+
+        fn index_of(haystack: &str, needle: &str) -> usize {
+            haystack
+                .find(needle)
+                .unwrap_or_else(|| panic!("expected to find `{needle}` in ShowTable component"))
+        }
+
+        let filtered_list = index_of(component_source, "let filtered_list = Memo::new");
+        let paginated_list = index_of(component_source, "let paginated_list = Memo::new");
+        let empty_state = index_of(component_source, "No data available.");
+        let conference_card = index_of(component_source, "<ConferenceCard");
+        let table_body = index_of(component_source, "<TableBody>");
+
+        assert!(filtered_list < paginated_list);
+        assert!(paginated_list < table_body);
+        assert!(table_body < conference_card);
+        assert!(empty_state < conference_card);
+    }
+
+    #[test]
+    fn category_selection_helpers_preserve_toggle_all_and_empty_state_contract() {
+        let categories = categories();
+        let mut selected = HashSet::new();
+
+        assert!(selected.is_empty());
+        assert!(!are_all_categories_selected(&categories, &selected));
+
+        toggle_category_selection(&mut selected, "AI");
+        assert_eq!(selected, HashSet::from(["AI".to_string()]));
+        assert!(!are_all_categories_selected(&categories, &selected));
+
+        toggle_category_selection(&mut selected, "AI");
+        assert!(selected.is_empty());
+
+        selected = all_category_subs(&categories);
+        assert!(are_all_categories_selected(&categories, &selected));
+    }
+
+    #[test]
     fn top_section_order_matches_phase1_layout() {
         const SHOWTABLE_SOURCE: &str = include_str!("showtable.rs");
 
-        fn index_of(needle: &str) -> usize {
-            SHOWTABLE_SOURCE
+        let showtable_start = SHOWTABLE_SOURCE
+            .rfind("pub fn ShowTable(use_english: RwSignal<bool>) -> impl IntoView {")
+            .expect("expected ShowTable component definition");
+        let showtable_end = SHOWTABLE_SOURCE
+            .rfind("static UTC_MAP: OnceLock<HashMap<String, String>> = OnceLock::new();")
+            .expect("expected end of ShowTable component source");
+        let component_source = &SHOWTABLE_SOURCE[showtable_start..showtable_end];
+
+        fn index_of(haystack: &str, needle: &str) -> usize {
+            haystack
                 .find(needle)
-                .unwrap_or_else(|| panic!("expected to find `{needle}` in showtable.rs"))
+                .unwrap_or_else(|| panic!("expected to find `{needle}` in ShowTable component"))
         }
 
-        let primary_toolbar = index_of("class=\"primary-toolbar\"");
-        let secondary_meta = index_of("class=\"secondary-meta-row\"");
-        let category_chips = index_of("class=\"category-chip-section\"");
+        let primary_toolbar = index_of(component_source, "<TopToolbar");
+        let secondary_meta = index_of(component_source, "class=\"secondary-meta-row\"");
+        let category_chips = index_of(component_source, "class=\"category-chip-section\"");
 
         assert!(primary_toolbar < secondary_meta);
         assert!(secondary_meta < category_chips);
+    }
+
+    #[test]
+    fn results_meta_component_is_used() {
+        const SHOWTABLE_SOURCE: &str = include_str!("showtable.rs");
+
+        let showtable_start = SHOWTABLE_SOURCE
+            .rfind("pub fn ShowTable(use_english: RwSignal<bool>) -> impl IntoView {")
+            .expect("expected ShowTable component definition");
+        let showtable_end = SHOWTABLE_SOURCE
+            .rfind("static UTC_MAP: OnceLock<HashMap<String, String>> = OnceLock::new();")
+            .expect("expected end of ShowTable component source");
+        let component_source = &SHOWTABLE_SOURCE[showtable_start..showtable_end];
+
+        fn index_of(haystack: &str, needle: &str) -> usize {
+            haystack
+                .find(needle)
+                .unwrap_or_else(|| panic!("expected to find `{needle}` in ShowTable component"))
+        }
+
+        let results_meta = index_of(component_source, "<ResultsMeta");
+        let secondary_meta = index_of(component_source, "class=\"secondary-meta-row\"");
+        let category_chips = index_of(component_source, "class=\"category-chip-section\"");
+
+        assert!(results_meta < secondary_meta);
+        assert!(secondary_meta < category_chips);
+    }
+
+    #[test]
+    fn top_toolbar_component_is_used() {
+        const SHOWTABLE_SOURCE: &str = include_str!("showtable.rs");
+
+        let showtable_start = SHOWTABLE_SOURCE
+            .rfind("pub fn ShowTable(use_english: RwSignal<bool>) -> impl IntoView {")
+            .expect("expected ShowTable component definition");
+        let showtable_end = SHOWTABLE_SOURCE
+            .rfind("static UTC_MAP: OnceLock<HashMap<String, String>> = OnceLock::new();")
+            .expect("expected end of ShowTable component source");
+        let component_source = &SHOWTABLE_SOURCE[showtable_start..showtable_end];
+
+        fn index_of(haystack: &str, needle: &str) -> usize {
+            haystack
+                .find(needle)
+                .unwrap_or_else(|| panic!("expected to find `{needle}` in ShowTable component"))
+        }
+
+        let top_toolbar = index_of(component_source, "<TopToolbar");
+        let category_chips = index_of(component_source, "class=\"category-chip-section\"");
+
+        assert!(top_toolbar < category_chips);
+    }
+
+    #[test]
+    fn phase1_toolbar_meta_and_chip_sections_have_distinct_css_hierarchy() {
+        const STYLES_SOURCE: &str = include_str!("../../public/styles.css");
+
+        assert!(STYLES_SOURCE.contains(".primary-toolbar {"));
+        assert!(STYLES_SOURCE.contains(".secondary-meta-row {"));
+        assert!(STYLES_SOURCE.contains(".category-chip-section {"));
+        assert!(STYLES_SOURCE.contains(".results-meta-actions {"));
+        assert!(STYLES_SOURCE.contains(".clear-filters-button {"));
+    }
+
+    #[test]
+    fn phase3_conference_card_contract_preserves_deadline_and_timeline_structure() {
+        const CARD_SOURCE: &str = include_str!("conference_card.rs");
+
+        assert!(CARD_SOURCE.contains("<CountDown remain compact=true />"));
+        assert!(CARD_SOURCE.contains("class=\"conference-deadline-panel"));
+        assert!(CARD_SOURCE.contains("<CalendarPopover"));
+        assert!(CARD_SOURCE.contains("format!(\"Deadline: {}\", show_ddl_str)"));
+        assert!(CARD_SOURCE.contains("\"website: \""));
+        assert!(CARD_SOURCE.contains("<TimeLine time_points=ddls />"));
+    }
+
+    #[test]
+    fn phase3_css_hierarchy_is_defined() {
+        const STYLES_SOURCE: &str = include_str!("../../public/styles.css");
+
+        assert!(STYLES_SOURCE.contains(".hero-header {"));
+        assert!(STYLES_SOURCE.contains(".primary-toolbar {"));
+        assert!(STYLES_SOURCE.contains(".primary-toolbar-main {"));
+        assert!(STYLES_SOURCE.contains(".timezone-search {"));
+        assert!(STYLES_SOURCE.contains(".secondary-meta-row {"));
+        assert!(STYLES_SOURCE.contains(".results-meta-actions {"));
+        assert!(STYLES_SOURCE.contains(".category-chip-section {"));
+        assert!(STYLES_SOURCE.contains(".conference-card-shell {"));
+        assert!(STYLES_SOURCE.contains(".conference-card-main,"));
+        assert!(STYLES_SOURCE.contains(".conference-tag-groups {"));
+        assert!(STYLES_SOURCE.contains(".conference-deadline-panel,"));
+        assert!(STYLES_SOURCE.contains(".table-no-results {"));
+        assert!(STYLES_SOURCE.contains(".table-no-results.empty-state-text {"));
+        assert!(STYLES_SOURCE.contains(".countdown-compact {"));
+        assert!(STYLES_SOURCE.contains("@media (max-width: 640px) {"));
+        assert!(STYLES_SOURCE.contains(".primary-toolbar-actions > * {"));
+        assert!(STYLES_SOURCE.contains(".conference-deadline-panel .countdown-display,"));
+    }
+
+    #[test]
+    fn clears_search_category_and_rank_filters_without_touching_likes_or_pagination() {
+        let input_value = RwSignal::new("vision".to_string());
+        let check_list = RwSignal::new(HashSet::from(["AI".to_string()]));
+        let rank_list = RwSignal::new(HashSet::from(["A".to_string()]));
+        let core_rank_list = RwSignal::new(HashSet::from(["A*".to_string()]));
+        let thcpl_rank_list = RwSignal::new(HashSet::from(["B".to_string()]));
+        let like_list = RwSignal::new(HashSet::from(["liked-conf".to_string()]));
+        let page = RwSignal::new(3);
+
+        clear_phase1_filters(
+            input_value,
+            check_list,
+            rank_list,
+            core_rank_list,
+            thcpl_rank_list,
+        );
+
+        assert!(input_value.get().is_empty());
+        assert!(check_list.get().is_empty());
+        assert!(rank_list.get().is_empty());
+        assert!(core_rank_list.get().is_empty());
+        assert!(thcpl_rank_list.get().is_empty());
+        assert_eq!(like_list.get(), HashSet::from(["liked-conf".to_string()]));
+        assert_eq!(page.get(), 3);
+    }
+
+    #[test]
+    fn detects_when_phase1_filters_are_active() {
+        let empty = HashSet::new();
+        let selected = HashSet::from(["AI".to_string()]);
+
+        assert!(!has_active_phase1_filters("", &empty, &empty, &empty, &empty));
+        assert!(has_active_phase1_filters("vision", &empty, &empty, &empty, &empty));
+        assert!(has_active_phase1_filters("", &selected, &empty, &empty, &empty));
+    }
+
+    #[test]
+    fn secondary_meta_row_exposes_result_count_and_clear_filters_action() {
+        const RESULTS_META_SOURCE: &str = include_str!("results_meta.rs");
+
+        assert!(RESULTS_META_SOURCE.contains("class=\"results-count-message\""));
+        assert!(RESULTS_META_SOURCE.contains("class=\"clear-filters-button\""));
+    }
+
+    #[test]
+    fn current_result_count_uses_filtered_list_without_cloning_for_len() {
+        const SHOWTABLE_SOURCE: &str = include_str!("showtable.rs");
+
+        let showtable_start = SHOWTABLE_SOURCE
+            .rfind("pub fn ShowTable(use_english: RwSignal<bool>) -> impl IntoView {")
+            .expect("expected ShowTable component definition");
+        let showtable_end = SHOWTABLE_SOURCE
+            .rfind("static UTC_MAP: OnceLock<HashMap<String, String>> = OnceLock::new();")
+            .expect("expected end of ShowTable component source");
+        let component_source = &SHOWTABLE_SOURCE[showtable_start..showtable_end];
+
+        assert!(component_source.contains(
+            "filtered_list.with(|filtered_list| filtered_list.len())"
+        ));
+    }
+
+    #[test]
+    fn filtered_result_count_helper_is_removed() {
+        const SHOWTABLE_SOURCE: &str = include_str!("showtable.rs");
+        let tests_start = SHOWTABLE_SOURCE
+            .find("#[cfg(test)]")
+            .expect("expected test module");
+        let production_source = &SHOWTABLE_SOURCE[..tests_start];
+
+        assert!(!production_source.contains("fn filtered_result_count("));
+    }
+
+    #[test]
+    fn computes_filtered_result_count_from_same_filtered_list_used_for_pagination() {
+        let conferences = vec![
+            sample_conf("liked-run", "RUN", true),
+            sample_conf("other-run", "RUN", false),
+            sample_conf("finished", "FIN", false),
+        ];
+        let empty = HashSet::new();
+        let query = String::from("liked");
+        let filtered = filter_conferences(
+            conferences,
+            &empty,
+            query.as_str(),
+            &empty,
+            &empty,
+            &empty,
+        );
+
+        assert_eq!(filtered.len(), 1);
     }
 }
 
@@ -459,42 +850,32 @@ pub fn ShowTable(use_english: RwSignal<bool>) -> impl IntoView {
         });
     });
 
+    let filtered_list = Memo::new(move |_| {
+        filter_conferences(
+            all_conf_list.get(),
+            &check_list.get(),
+            &input_value.get(),
+            &rank_list.get(),
+            &core_rank_list.get(),
+            &thcpl_rank_list.get(),
+        )
+    });
+
+    let has_active_filters = Memo::new(move |_| {
+        has_active_phase1_filters(
+            &input_value.get(),
+            &check_list.get(),
+            &rank_list.get(),
+            &core_rank_list.get(),
+            &thcpl_rank_list.get(),
+        )
+    });
+
+    let current_result_count =
+        Memo::new(move |_| filtered_list.with(|filtered_list| filtered_list.len()));
+
     let paginated_list = Memo::new(move |_| {
-        let mut filtered_list = all_conf_list.get();
-
-        // Filtering
-        let checkbox_val = check_list.get();
-        if !checkbox_val.is_empty() {
-            filtered_list.retain(|item| checkbox_val.contains(&item.sub.to_uppercase()));
-        }
-
-        let rank_val = rank_list.get();
-        if !rank_val.is_empty() {
-            filtered_list.retain(|item| rank_val.contains(&item.rank));
-        }
-        let core_rank_val = core_rank_list.get();
-        if !core_rank_val.is_empty() {
-            filtered_list.retain(|item| {
-                let core_rank = item.corerank.as_deref().unwrap_or("N");
-                core_rank_val.contains(core_rank)
-            });
-        }
-        let thcpl_rank_val = thcpl_rank_list.get();
-        if !thcpl_rank_val.is_empty() {
-            filtered_list.retain(|item| {
-                let thcpl_rank = item.thcplrank.as_deref().unwrap_or("N");
-                thcpl_rank_val.contains(thcpl_rank)
-            });
-        }
-
-        let input_val = input_value.get();
-        if !input_val.is_empty() {
-            let input_lower = input_val.to_lowercase();
-            filtered_list.retain(|item| {
-                item.id.to_lowercase().contains(&input_lower)
-                    || item.title.to_lowercase().contains(&input_lower)
-            });
-        }
+        let filtered_list = filtered_list.get();
 
         // Sorting and Grouping
         let mut run_list: Vec<_> = filtered_list
@@ -554,135 +935,34 @@ pub fn ShowTable(use_english: RwSignal<bool>) -> impl IntoView {
 
     view! {
         <section>
-            <div class="primary-toolbar">
-                <div class="primary-toolbar-main">
-                    <div class="timezone-search">
-                        <Input
-                            value=input_value
-                            placeholder="search conference"
-                            size=InputSize::Small
-                            class="custom-search-input"
-                        >
-                            <InputPrefix slot>
-                                <Icon icon=icondata::FiSearch class="search-prefix-icon" />
-                            </InputPrefix>
-                        </Input>
-                    </div>
-                </div>
+            <TopToolbar
+                input_value=input_value
+                rank_list=rank_list
+                core_rank_list=core_rank_list
+                thcpl_rank_list=thcpl_rank_list
+                open_dropdown=open_dropdown
+                show_filters=show_filters
+                show_subscription_modal=show_subscription_modal
+                is_mobile=is_mobile
+                use_english=use_english
+            />
 
-                <div class="primary-toolbar-actions">
-                    <Button
-                        size=ButtonSize::Small
-                        appearance=ButtonAppearance::Subtle
-                        on_click=move |_| show_subscription_modal.set(true)
-                    >
-                        <Icon icon=icondata::AiCalendarOutlined class="calendar-button-icon" />
-                        {move || if use_english.get() { "Subscribe" } else { "订阅" }}
-                    </Button>
-                    {move || {
-                        if is_mobile.get() {
-                            view! {
-                                <div class="mobile-filter-menu">
-                                    <Button
-                                        size=ButtonSize::Small
-                                        appearance=ButtonAppearance::Subtle
-                                        on_click=move |_| show_filters.update(|v| *v = !*v)
-                                    >
-                                        <Icon icon=icondata::FiFilter class="filter-button-icon" />
-                                        {move || if use_english.get() { "Filters" } else { "筛选" }}
-                                        <Icon
-                                            icon=if show_filters.get() {
-                                                icondata::BsChevronUp
-                                            } else {
-                                                icondata::BsChevronDown
-                                            }
-                                            class="filter-button-chevron"
-                                        />
-                                    </Button>
-                                    {move || {
-                                        if show_filters.get() {
-                                            view! {
-                                                <div class="mobile-filter-panel">
-                                                    <MultiSelectDropdown
-                                                        dropdown_id="ccf".to_string()
-                                                        title="CCF".to_string()
-                                                        options=ccf_filter_options()
-                                                        selected_values=rank_list
-                                                        use_english=use_english
-                                                        panel_width="180px".to_string()
-                                                        open_dropdown=open_dropdown
-                                                    />
-                                                    <MultiSelectDropdown
-                                                        dropdown_id="core".to_string()
-                                                        title="CORE".to_string()
-                                                        options=core_filter_options()
-                                                        selected_values=core_rank_list
-                                                        use_english=use_english
-                                                        panel_width="188px".to_string()
-                                                        open_dropdown=open_dropdown
-                                                    />
-                                                    <MultiSelectDropdown
-                                                        dropdown_id="thcpl".to_string()
-                                                        title="THCPL".to_string()
-                                                        options=thcpl_filter_options()
-                                                        selected_values=thcpl_rank_list
-                                                        use_english=use_english
-                                                        panel_width="196px".to_string()
-                                                        open_dropdown=open_dropdown
-                                                    />
-                                                </div>
-                                            }
-                                                .into_any()
-                                        } else {
-                                            view! {}.into_any()
-                                        }
-                                    }}
-                                </div>
-                            }
-                                .into_any()
-                        } else {
-                            view! {
-                                <div class="desktop-filter-actions">
-                                    <MultiSelectDropdown
-                                        dropdown_id="ccf".to_string()
-                                        title="CCF".to_string()
-                                        options=ccf_filter_options()
-                                        selected_values=rank_list
-                                        use_english=use_english
-                                        panel_width="180px".to_string()
-                                        open_dropdown=open_dropdown
-                                    />
-                                    <MultiSelectDropdown
-                                        dropdown_id="core".to_string()
-                                        title="CORE".to_string()
-                                        options=core_filter_options()
-                                        selected_values=core_rank_list
-                                        use_english=use_english
-                                        panel_width="188px".to_string()
-                                        open_dropdown=open_dropdown
-                                    />
-                                    <MultiSelectDropdown
-                                        dropdown_id="thcpl".to_string()
-                                        title="THCPL".to_string()
-                                        options=thcpl_filter_options()
-                                        selected_values=thcpl_rank_list
-                                        use_english=use_english
-                                        panel_width="196px".to_string()
-                                        open_dropdown=open_dropdown
-                                    />
-                                </div>
-                            }
-                                .into_any()
-                        }
-                    }}
-                </div>
-            </div>
-
-            <div class="secondary-meta-row">
-                <div class="timezone-message">
-                    "Deadlines are shown in "{move || time_zone.get()}" time."
-                </div>
-            </div>
+            <ResultsMeta
+                class="secondary-meta-row"
+                timezone_label=Signal::derive(move || time_zone.get())
+                result_count=Signal::derive(move || current_result_count.get())
+                has_active_filters=Signal::derive(move || has_active_filters.get())
+                on_clear_filters=Callback::new(move |_| {
+                    clear_phase1_filters(
+                        input_value,
+                        check_list,
+                        rank_list,
+                        core_rank_list,
+                        thcpl_rank_list,
+                    );
+                })
+                use_english=use_english
+            />
 
             <div class="category-chip-section">
                 <div class="category-actions-row">
@@ -745,7 +1025,7 @@ pub fn ShowTable(use_english: RwSignal<bool>) -> impl IntoView {
                                 view! {
                                     <TableRow>
                                         <TableCell>
-                                            <div class="empty-state-text">
+                                            <div class="table-no-results empty-state-text">
                                                 "No data available."
                                             </div>
                                         </TableCell>
@@ -954,23 +1234,4 @@ fn set_in_local_storage(key: &str, value: &str) {
     local_storage.set_item(key, value).unwrap();
 }
 
-#[cfg(test)]
-mod tests {
-    const SHOWTABLE_SOURCE: &str = include_str!("showtable.rs");
 
-    fn index_of(needle: &str) -> usize {
-        SHOWTABLE_SOURCE
-            .find(needle)
-            .unwrap_or_else(|| panic!("expected to find `{needle}` in showtable.rs"))
-    }
-
-    #[test]
-    fn top_section_order_matches_phase1_layout() {
-        let primary_toolbar = index_of("class=\"primary-toolbar\"");
-        let secondary_meta = index_of("class=\"secondary-meta-row\"");
-        let category_chips = index_of("class=\"category-chip-section\"");
-
-        assert!(primary_toolbar < secondary_meta);
-        assert!(secondary_meta < category_chips);
-    }
-}

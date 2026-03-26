@@ -74,141 +74,151 @@ pub fn ConferenceCard(
         <TableRow>
             <TableCell>
                 <TableCellLayout>
-                    <div class=("conf-fin", is_finished)>
-                        <div class="conf-title">
-                            <a href=dblp_url class="table-link interactive-link" target="_blank">
-                                {title}
-                            </a>
-                            " "
-                            {year}
-                            <button
-                                type="button"
-                                class="favorite-toggle"
-                                aria-label=if is_like {
-                                    "Remove conference from favorites"
-                                } else {
-                                    "Add conference to favorites"
-                                }
-                                on:click=move |_| on_toggle_favorite.run(())
-                            >
-                                {if is_like {
-                                    Either::Left(view! {
-                                        <Icon icon=icondata::BsStarFill class="favorite-icon favorite-icon-active" />
-                                    })
-                                } else {
-                                    Either::Right(view! {
-                                        <Icon icon=icondata::BsStar class="favorite-icon favorite-icon-inactive" />
-                                    })
-                                }}
-                            </button>
-                        </div>
-
-                        <div class="conference-meta-text">{date} " " {place}</div>
-
-                        <div class="conference-meta-text">{description}</div>
-
-                        <div class="conference-tag-groups">
-                            <div class="tag-container conference-tag-group conference-rank-tags">
-                                <span class=move || if ccf_rank_selected.get() { "tag-highlight" } else { "" }>
-                                    <Tag class="plain-tag">{ccf_rank_label.clone()}</Tag>
-                                </span>
+                    <div class="conference-card-shell conference-card-row">
+                        <div class="conference-card-main conference-card-main-wrap" class:conf-fin=is_finished>
+                            <div class="conf-title">
+                                <a href=dblp_url class="table-link interactive-link" target="_blank">
+                                    {title}
+                                </a>
                                 " "
-                                <span class=move || if core_rank_selected.get() { "tag-highlight" } else { "" }>
-                                    <Tag class="plain-tag">{core_rank_label.clone()}</Tag>
-                                </span>
-                                " "
-                                <span class=move || if thcpl_rank_selected.get() { "tag-highlight" } else { "" }>
-                                    <Tag class="plain-tag">{thcpl_rank_label.clone()}</Tag>
-                                </span>
-                            </div>
-
-                            <div class="tag-container conference-tag-group conference-meta-tags">
-                                {acceptance_rate.map(|acc| {
-                                    view! {
-                                        <Tag class="plain-tag">{acc}</Tag>
-                                    }
-                                })}
-                                <Tag class="plain-tag">{move || category_label.get()}</Tag>
-                            </div>
-                        </div>
-
-                        {comment.map(|comment| {
-                            view! {
-                                <div class="conference-note">
-                                    <b>"NOTE: "</b>
-                                    {comment}
+                                {year}
+                                <div class="conference-favorite-anchor">
+                                    <button
+                                        type="button"
+                                        class="favorite-toggle"
+                                        aria-label=if is_like {
+                                            "Remove conference from favorites"
+                                        } else {
+                                            "Add conference to favorites"
+                                        }
+                                        on:click=move |_| on_toggle_favorite.run(())
+                                    >
+                                        {if is_like {
+                                            Either::Left(view! {
+                                                <Icon icon=icondata::BsStarFill class="favorite-icon favorite-icon-active" />
+                                            })
+                                        } else {
+                                            Either::Right(view! {
+                                                <Icon icon=icondata::BsStar class="favorite-icon favorite-icon-inactive" />
+                                            })
+                                        }}
+                                    </button>
                                 </div>
-                            }
-                        })}
+                            </div>
+
+                            <div class="conference-meta-text conference-card-meta-row">{date} " " {place}</div>
+
+                            <div class="conference-meta-text conference-card-meta-row">{description}</div>
+
+                            <div class="conference-tag-groups conference-card-meta-row">
+                                <div class="tag-container conference-tag-group conference-rank-tags">
+                                    <span class=move || if ccf_rank_selected.get() { "tag-highlight" } else { "" }>
+                                        <Tag class="plain-tag">{ccf_rank_label.clone()}</Tag>
+                                    </span>
+                                    " "
+                                    <span class=move || if core_rank_selected.get() { "tag-highlight" } else { "" }>
+                                        <Tag class="plain-tag">{core_rank_label.clone()}</Tag>
+                                    </span>
+                                    " "
+                                    <span class=move || if thcpl_rank_selected.get() { "tag-highlight" } else { "" }>
+                                        <Tag class="plain-tag">{thcpl_rank_label.clone()}</Tag>
+                                    </span>
+                                </div>
+
+                                <div class="tag-container conference-tag-group conference-meta-tags">
+                                    {acceptance_rate.map(|acc| {
+                                        view! {
+                                            <Tag class="plain-tag">{acc}</Tag>
+                                        }
+                                    })}
+                                    <Tag class="plain-tag">{move || category_label.get()}</Tag>
+                                </div>
+                            </div>
+
+                            {comment.map(|comment| {
+                                view! {
+                                    <div class="conference-note conference-card-meta-row">
+                                        <b>"NOTE: "</b>
+                                        {comment}
+                                    </div>
+                                }
+                            })}
+
+                            <div class="conference-meta-text conference-card-meta-row conference-website-link-wrap">
+                                "website: "
+                                <a
+                                    href=link.clone()
+                                    class="inline-muted-link interactive-link inline-break-link conference-website-link"
+                                    target="_blank"
+                                >
+                                    {display_link}
+                                </a>
+                            </div>
+                        </div>
                     </div>
                 </TableCellLayout>
             </TableCell>
 
             <TableCell>
                 <TableCellLayout>
-                    <div class=("conf-fin", is_finished)>
-                        {if is_tbd {
-                            Either::Left(view! {
-                                <div class="countdown-container">
-                                    <div class="countdown-display">
-                                        <span class="countdown-value">"TBD"</span>
-                                    </div>
-                                </div>
-                            })
-                        } else {
-                            Either::Right(view! {
-                                <div class="countdown-container">
-                                    <div class="countdown-display">
-                                        <span class="countdown-value">
-                                            <CountDown remain />
-                                            <CalendarPopover
-                                                google_calendar_url=google_calendar_url
-                                                icloud_calendar_url=icloud_calendar_url
-                                                is_mobile
-                                            />
-                                        </span>
-                                    </div>
-                                </div>
-                            })
-                        }}
-
-                        <div class="conference-meta-text">
+                    <div class="conference-deadline-panel countdown-panel">
+                        <div class:conf-fin=is_finished>
                             {if is_tbd {
                                 Either::Left(view! {
-                                    <span>
-                                        "Deadline: "
-                                        <a
-                                            href="https://github.com/ccfddl/ccf-deadlines/pulls"
-                                            class="inline-muted-link interactive-link"
-                                            target="_blank"
-                                        >
-                                            "pull request to update"
-                                        </a>
-                                    </span>
+                                    <div class="countdown-container countdown-line">
+                                        <div class="countdown-display countdown-value-wrap">
+                                            <span class="countdown-value">"TBD"</span>
+                                        </div>
+                                    </div>
                                 })
                             } else {
                                 Either::Right(view! {
-                                    <span>{format!("Deadline: {}", show_ddl_str)}</span>
+                                    <div class="countdown-container countdown-line">
+                                        <div class="countdown-display countdown-value-wrap">
+                                            <span class="countdown-value">
+                                                <CountDown remain compact=true />
+                                                <CalendarPopover
+                                                    google_calendar_url=google_calendar_url
+                                                    icloud_calendar_url=icloud_calendar_url
+                                                    is_mobile
+                                                />
+                                            </span>
+                                        </div>
+                                    </div>
+                                })
+                            }}
+
+                            <div class="conference-meta-text countdown-panel-meta">
+                                {if is_tbd {
+                                    Either::Left(view! {
+                                        <span>
+                                            "Deadline: "
+                                            <a
+                                                href="https://github.com/ccfddl/ccf-deadlines/pulls"
+                                                class="inline-muted-link interactive-link"
+                                                target="_blank"
+                                            >
+                                                "pull request to update"
+                                            </a>
+                                        </span>
+                                    })
+                                } else {
+                                    Either::Right(view! {
+                                        <span>{format!("Deadline: {}", show_ddl_str)}</span>
+                                    })
+                                }}
+                            </div>
+
+                            {if is_finished || is_tbd {
+                                Either::Left(view! { <></> })
+                            } else {
+                                Either::Right(view! {
+                                    <div class="countdown-timeline-wrap">
+                                        <TimeLine time_points=ddls />
+                                    </div>
                                 })
                             }}
                         </div>
-
-                        <div class="conference-meta-text">
-                            "website: "
-                            <a
-                                href=link.clone()
-                                class="inline-muted-link interactive-link inline-break-link"
-                                target="_blank"
-                            >
-                                {display_link}
-                            </a>
-                        </div>
-
-                        {if is_finished || is_tbd {
-                            Either::Left(view! { <></> })
-                        } else {
-                            Either::Right(view! { <TimeLine time_points=ddls /> })
-                        }}
                     </div>
                 </TableCellLayout>
             </TableCell>
@@ -283,5 +293,39 @@ mod tests {
         let mut without_rate = conf;
         without_rate.acc_str = None;
         assert_eq!(acceptance_rate_label(&without_rate), None);
+    }
+
+    #[test]
+    fn website_link_uses_styled_compact_wrapper_class() {
+        const SOURCE: &str = include_str!("conference_card.rs");
+
+        assert!(SOURCE.contains("conference-card-main conference-card-main-wrap"));
+        assert!(SOURCE.contains("conference-website-link-wrap"));
+        assert!(SOURCE.contains("conference-website-link"));
+        assert!(SOURCE.contains("conference-favorite-anchor"));
+        assert!(SOURCE.contains("countdown-panel"));
+        assert!(SOURCE.contains("countdown-value-wrap"));
+        assert!(SOURCE.contains("countdown-panel-meta"));
+        assert!(SOURCE.contains("countdown-timeline-wrap"));
+    }
+
+    #[test]
+    fn website_row_stays_in_main_card_column_before_deadline_panel() {
+        const SOURCE: &str = include_str!("conference_card.rs");
+
+        let main_column = SOURCE
+            .find("<div class=\"conference-card-main conference-card-main-wrap\"")
+            .expect("conference card main column should exist");
+        let website_row = SOURCE
+            .find("\"website: \"")
+            .expect("conference card should render a website row");
+        let deadline_panel = SOURCE
+            .find("<div class=\"conference-deadline-panel countdown-panel\">")
+            .expect("conference deadline panel should exist");
+
+        assert!(
+            main_column < website_row && website_row < deadline_panel,
+            "website row should be rendered in the main card column before the deadline panel"
+        );
     }
 }
