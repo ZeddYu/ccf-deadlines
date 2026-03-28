@@ -179,7 +179,7 @@ async fn fetch_latest_commit() -> Result<(bool, String), Box<dyn std::error::Err
 #[cfg(test)]
 mod tests {
     #[test]
-    fn header_rows_match_phase1_structure() {
+    fn header_rows_match_redesign_structure() {
         const HEADER_SOURCE: &str = include_str!("header.rs");
 
         fn index_of(haystack: &str, needle: &str) -> usize {

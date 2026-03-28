@@ -19,7 +19,7 @@ pub fn TopToolbar(
     view! {
         <div class="primary-toolbar">
             <div class="primary-toolbar-main">
-                <div class="timezone-search">
+                <div class="toolbar-search-shell timezone-search">
                     <Input
                         value=input_value
                         placeholder="Search conferences..."
@@ -34,15 +34,6 @@ pub fn TopToolbar(
             </div>
 
             <div class="primary-toolbar-actions">
-                <Button
-                    class="toolbar-action-button subscribe-button"
-                    size=ButtonSize::Small
-                    appearance=ButtonAppearance::Subtle
-                    on_click=move |_| show_subscription_modal.set(true)
-                >
-                    <Icon icon=icondata::AiCalendarOutlined class="calendar-button-icon" />
-                    {move || if use_english.get() { "Subscribe" } else { "订阅" }}
-                </Button>
                 {move || {
                     if is_mobile.get() {
                         Either::Left(view! {
@@ -137,6 +128,15 @@ pub fn TopToolbar(
                         })
                     }
                 }}
+                <Button
+                    class="toolbar-action-button subscribe-button"
+                    size=ButtonSize::Small
+                    appearance=ButtonAppearance::Subtle
+                    on_click=move |_| show_subscription_modal.set(true)
+                >
+                    <Icon icon=icondata::AiCalendarOutlined class="calendar-button-icon" />
+                    {move || if use_english.get() { "Subscribe" } else { "订阅" }}
+                </Button>
             </div>
         </div>
     }
@@ -149,6 +149,7 @@ mod tests {
         const SOURCE: &str = include_str!("top_toolbar.rs");
 
         assert!(SOURCE.contains("Search conferences..."));
+        assert!(SOURCE.contains("class=\"toolbar-search-shell timezone-search\""));
     }
 
     #[test]
@@ -158,6 +159,32 @@ mod tests {
         assert!(SOURCE.contains("class=\"primary-toolbar-actions\""));
         assert!(SOURCE.contains("class=\"toolbar-action-button subscribe-button\""));
         assert!(SOURCE.contains("class=\"toolbar-action-button filter-toggle-button\""));
+        assert!(SOURCE.contains("class=\"desktop-filter-actions\""));
         assert!(SOURCE.contains("on_click=move |_| show_subscription_modal.set(true)"));
+    }
+
+    #[test]
+    fn top_toolbar_uses_unified_surface_order() {
+        const SOURCE: &str = include_str!("top_toolbar.rs");
+
+        fn index_of(haystack: &str, needle: &str) -> usize {
+            haystack
+                .find(needle)
+                .unwrap_or_else(|| panic!("expected to find `{needle}` in TopToolbar source"))
+        }
+
+        let main = index_of(SOURCE, "class=\"primary-toolbar-main\"");
+        let search = index_of(SOURCE, "class=\"toolbar-search-shell timezone-search\"");
+        let actions = index_of(SOURCE, "class=\"primary-toolbar-actions\"");
+        let desktop_filters = index_of(SOURCE, "class=\"desktop-filter-actions\"");
+        let mobile_filters = index_of(SOURCE, "class=\"mobile-filter-menu\"");
+        let subscribe = index_of(SOURCE, "class=\"toolbar-action-button subscribe-button\"");
+
+        assert!(main < search);
+        assert!(search < actions);
+        assert!(actions < desktop_filters);
+        assert!(actions < mobile_filters);
+        assert!(desktop_filters < subscribe);
+        assert!(mobile_filters < subscribe);
     }
 }

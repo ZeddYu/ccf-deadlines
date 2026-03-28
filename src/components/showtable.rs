@@ -251,7 +251,7 @@ mod tests {
     }
 
     #[test]
-    fn top_section_order_matches_phase1_layout() {
+    fn top_section_order_matches_redesign_layout() {
         const SHOWTABLE_SOURCE: &str = include_str!("showtable.rs");
 
         let showtable_start = SHOWTABLE_SOURCE
@@ -271,9 +271,11 @@ mod tests {
         let primary_toolbar = index_of(component_source, "<TopToolbar");
         let secondary_meta = index_of(component_source, "class=\"secondary-meta-row\"");
         let category_chips = index_of(component_source, "class=\"category-chip-section\"");
+        let table_container = index_of(component_source, "class=\"table-container\"");
 
         assert!(primary_toolbar < secondary_meta);
         assert!(secondary_meta < category_chips);
+        assert!(category_chips < table_container);
     }
 
     #[test]
@@ -345,7 +347,7 @@ mod tests {
         assert!(CARD_SOURCE.contains("class=\"conference-deadline-panel"));
         assert!(CARD_SOURCE.contains("<CalendarPopover"));
         assert!(CARD_SOURCE.contains("format!(\"Deadline: {}\", show_ddl_str)"));
-        assert!(CARD_SOURCE.contains("\"website: \""));
+        assert!(CARD_SOURCE.contains("class=\"conference-website-label\">\"Website\"</span>"));
         assert!(CARD_SOURCE.contains("<TimeLine time_points=ddls />"));
     }
 

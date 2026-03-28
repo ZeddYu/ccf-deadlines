@@ -76,12 +76,15 @@ pub fn ConferenceCard(
                 <TableCellLayout>
                     <div class="conference-card-shell conference-card-row">
                         <div class="conference-card-main conference-card-main-wrap" class:conf-fin=is_finished>
-                            <div class="conf-title">
-                                <a href=dblp_url class="table-link interactive-link" target="_blank">
-                                    {title}
-                                </a>
-                                " "
-                                {year}
+                            <div class="conference-card-header-row">
+                                <div class="conf-title">
+                                    <a href=dblp_url class="table-link interactive-link" target="_blank">
+                                        {title}
+                                    </a>
+                                    " "
+                                    {year}
+                                </div>
+
                                 <div class="conference-favorite-anchor">
                                     <button
                                         type="button"
@@ -145,9 +148,10 @@ pub fn ConferenceCard(
                             })}
 
                             <div class="conference-meta-text conference-card-meta-row conference-website-link-wrap">
-                                "website: "
+                                <span class="conference-website-label">"Website"</span>
                                 <a
                                     href=link.clone()
+                                    title=link.clone()
                                     class="inline-muted-link interactive-link inline-break-link conference-website-link"
                                     target="_blank"
                                 >
@@ -155,69 +159,65 @@ pub fn ConferenceCard(
                                 </a>
                             </div>
                         </div>
-                    </div>
-                </TableCellLayout>
-            </TableCell>
 
-            <TableCell>
-                <TableCellLayout>
-                    <div class="conference-deadline-panel countdown-panel">
-                        <div class:conf-fin=is_finished>
-                            {if is_tbd {
-                                Either::Left(view! {
-                                    <div class="countdown-container countdown-line">
-                                        <div class="countdown-display countdown-value-wrap">
-                                            <span class="countdown-value">"TBD"</span>
-                                        </div>
-                                    </div>
-                                })
-                            } else {
-                                Either::Right(view! {
-                                    <div class="countdown-container countdown-line">
-                                        <div class="countdown-display countdown-value-wrap">
-                                            <span class="countdown-value">
-                                                <CountDown remain compact=true />
-                                                <CalendarPopover
-                                                    google_calendar_url=google_calendar_url
-                                                    icloud_calendar_url=icloud_calendar_url
-                                                    is_mobile
-                                                />
-                                            </span>
-                                        </div>
-                                    </div>
-                                })
-                            }}
-
-                            <div class="conference-meta-text countdown-panel-meta">
+                        <div class="conference-deadline-panel countdown-panel">
+                            <div class:conf-fin=is_finished>
                                 {if is_tbd {
                                     Either::Left(view! {
-                                        <span>
-                                            "Deadline: "
-                                            <a
-                                                href="https://github.com/ccfddl/ccf-deadlines/pulls"
-                                                class="inline-muted-link interactive-link"
-                                                target="_blank"
-                                            >
-                                                "pull request to update"
-                                            </a>
-                                        </span>
+                                        <div class="countdown-container countdown-line">
+                                            <div class="countdown-display countdown-value-wrap">
+                                                <span class="countdown-value">"TBD"</span>
+                                            </div>
+                                        </div>
                                     })
                                 } else {
                                     Either::Right(view! {
-                                        <span>{format!("Deadline: {}", show_ddl_str)}</span>
+                                        <div class="countdown-container countdown-line">
+                                            <div class="countdown-display countdown-value-wrap">
+                                                <span class="countdown-value">
+                                                    <CountDown remain compact=true />
+                                                    <CalendarPopover
+                                                        google_calendar_url=google_calendar_url
+                                                        icloud_calendar_url=icloud_calendar_url
+                                                        is_mobile
+                                                    />
+                                                </span>
+                                            </div>
+                                        </div>
+                                    })
+                                }}
+
+                                <div class="conference-meta-text countdown-panel-meta">
+                                    {if is_tbd {
+                                        Either::Left(view! {
+                                            <span>
+                                                "Deadline: "
+                                                <a
+                                                    href="https://github.com/ccfddl/ccf-deadlines/pulls"
+                                                    class="inline-muted-link interactive-link"
+                                                    target="_blank"
+                                                >
+                                                    "pull request to update"
+                                                </a>
+                                            </span>
+                                        })
+                                    } else {
+                                        Either::Right(view! {
+                                            <span>{format!("Deadline: {}", show_ddl_str)}</span>
+                                        })
+                                    }}
+                                </div>
+
+                                {if is_finished || is_tbd {
+                                    Either::Left(view! { <></> })
+                                } else {
+                                    Either::Right(view! {
+                                        <div class="countdown-timeline-wrap">
+                                            <TimeLine time_points=ddls />
+                                        </div>
                                     })
                                 }}
                             </div>
-
-                            {if is_finished || is_tbd {
-                                Either::Left(view! { <></> })
-                            } else {
-                                Either::Right(view! {
-                                    <div class="countdown-timeline-wrap">
-                                        <TimeLine time_points=ddls />
-                                    </div>
-                                })
-                            }}
                         </div>
                     </div>
                 </TableCellLayout>
@@ -296,14 +296,16 @@ mod tests {
     }
 
     #[test]
-    fn website_link_uses_styled_compact_wrapper_class() {
+    fn conference_card_keeps_unified_card_and_capsule_link_classes() {
         const SOURCE: &str = include_str!("conference_card.rs");
 
+        assert!(SOURCE.contains("conference-card-shell conference-card-row"));
         assert!(SOURCE.contains("conference-card-main conference-card-main-wrap"));
+        assert!(SOURCE.contains("conference-card-meta-row"));
         assert!(SOURCE.contains("conference-website-link-wrap"));
         assert!(SOURCE.contains("conference-website-link"));
+        assert!(SOURCE.contains("conference-deadline-panel countdown-panel"));
         assert!(SOURCE.contains("conference-favorite-anchor"));
-        assert!(SOURCE.contains("countdown-panel"));
         assert!(SOURCE.contains("countdown-value-wrap"));
         assert!(SOURCE.contains("countdown-panel-meta"));
         assert!(SOURCE.contains("countdown-timeline-wrap"));
@@ -317,7 +319,7 @@ mod tests {
             .find("<div class=\"conference-card-main conference-card-main-wrap\"")
             .expect("conference card main column should exist");
         let website_row = SOURCE
-            .find("\"website: \"")
+            .find("<span class=\"conference-website-label\">\"Website\"</span>")
             .expect("conference card should render a website row");
         let deadline_panel = SOURCE
             .find("<div class=\"conference-deadline-panel countdown-panel\">")
@@ -327,5 +329,15 @@ mod tests {
             main_column < website_row && website_row < deadline_panel,
             "website row should be rendered in the main card column before the deadline panel"
         );
+    }
+
+    #[test]
+    fn conference_card_uses_single_table_cell_for_integrated_surface() {
+        const SOURCE: &str = include_str!("conference_card.rs");
+        let tests_start = SOURCE.find("#[cfg(test)]").expect("expected test module");
+        let production_source = &SOURCE[..tests_start];
+
+        assert_eq!(production_source.matches("<TableCell>").count(), 1);
+        assert!(production_source.contains("<div class=\"conference-card-shell conference-card-row\">"));
     }
 }
