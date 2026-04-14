@@ -108,6 +108,7 @@ pub fn ShowTable() -> impl IntoView {
     let all_conf_list = RwSignal::new(Vec::<ConfItem>::new());
     let is_loading = RwSignal::new(true);
     let load_error = RwSignal::new(Option::<String>::None);
+    let is_retry = RwSignal::new(false);
 
     let time_zone = RwSignal::new(String::new());
 
@@ -184,6 +185,7 @@ pub fn ShowTable() -> impl IntoView {
         let sub_list = sub_list.clone();
         let is_loading = is_loading.clone();
         let load_error = load_error.clone();
+        let is_retry = is_retry.clone();
 
         move || {
             let all_conf_list = all_conf_list.clone();
@@ -191,11 +193,12 @@ pub fn ShowTable() -> impl IntoView {
             let sub_list = sub_list.clone();
             let is_loading = is_loading.clone();
             let load_error = load_error.clone();
+            let is_retry = is_retry.clone();
 
             spawn_local(async move {
                 let utc_map = load_utc_map();
                 let rank_options: HashMap<&str, &str> = RANK_OPTIONS.iter().cloned().collect();
-                let (current_timezone, _) = (get_browser_time_and_timezone().1, ());
+                let (current_time, current_timezone) = get_browser_time_and_timezone();
 
                 let window = web_sys::window().unwrap();
                 let location = window.location();
@@ -216,6 +219,7 @@ pub fn ShowTable() -> impl IntoView {
                         &utc_map,
                         &rank_options,
                         &current_timezone,
+                        current_time,
                         &like_list_clone,
                         &sub_list_clone,
                         &time_zone_clone,
@@ -236,10 +240,13 @@ pub fn ShowTable() -> impl IntoView {
                     }
                 };
 
-                if let Some((cached_confs, cached_acc)) = use_cache() {
-                    process_and_cache(cached_confs, cached_acc);
-                    is_loading.set(false);
+                if !is_retry.get_untracked() {
+                    if let Some((cached_confs, cached_acc)) = use_cache() {
+                        process_and_cache(cached_confs, cached_acc);
+                        is_loading.set(false);
+                    }
                 }
+                is_retry.set(false);
 
                 match fetch_all_conf(&base_url).await {
                     Ok(conferences) => {
@@ -255,6 +262,7 @@ pub fn ShowTable() -> impl IntoView {
                                     &utc_map,
                                     &rank_options,
                                     &current_timezone,
+                                    current_time,
                                     &like_list_clone,
                                     &sub_list_clone,
                                     &time_zone_clone,
@@ -614,6 +622,7 @@ pub fn ShowTable() -> impl IntoView {
                                                     on:click=move |_| {
                                                         load_error.set(None);
                                                         is_loading.set(true);
+                                                        is_retry.set(true);
                                                         fetch_data();
                                                     }
                                                 >
@@ -1079,12 +1088,12 @@ fn process_conferences(
     utc_map: &HashMap<String, String>,
     rank_options: &HashMap<&str, &str>,
     current_timezone: &chrono::FixedOffset,
+    current_time: DateTime<FixedOffset>,
     like_list: &HashSet<String>,
     sub_list: &[Category],
     time_zone: &str,
 ) -> Vec<ConfItem> {
     let mut conf_vec = Vec::new();
-    let current_time = get_browser_time_and_timezone().0;
 
     for conf in conferences {
         let conf_items = conf.confs.iter().map(|year_conf| {
