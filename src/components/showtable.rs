@@ -178,6 +178,123 @@ pub fn ShowTable() -> impl IntoView {
         });
     });
 
+    let fetch_data = {
+        let all_conf_list = all_conf_list.clone();
+        let like_list = like_list.clone();
+        let sub_list = sub_list.clone();
+        let is_loading = is_loading.clone();
+        let load_error = load_error.clone();
+
+        move || {
+            let all_conf_list = all_conf_list.clone();
+            let like_list = like_list.clone();
+            let sub_list = sub_list.clone();
+            let is_loading = is_loading.clone();
+            let load_error = load_error.clone();
+
+            spawn_local(async move {
+                let utc_map = load_utc_map();
+                let rank_options: HashMap<&str, &str> = RANK_OPTIONS.iter().cloned().collect();
+                let (current_timezone, _) = (get_browser_time_and_timezone().1, ());
+
+                let window = web_sys::window().unwrap();
+                let location = window.location();
+                let base_url = location.origin().unwrap();
+
+                let use_cache = || -> Option<(Vec<Conference>, Vec<ConfAccRate>)> {
+                    let cached_confs = get_cached_conferences()?;
+                    let cached_acc = get_cached_acc()?;
+                    Some((cached_confs, cached_acc))
+                };
+
+                let process_and_cache = |conferences: Vec<Conference>, acc: Vec<ConfAccRate>| {
+                    let like_list_clone = like_list.get();
+                    let sub_list_clone = sub_list.get();
+                    let time_zone_clone = time_zone.get_untracked();
+                    let conf_vec = process_conferences(
+                        conferences,
+                        &utc_map,
+                        &rank_options,
+                        &current_timezone,
+                        &like_list_clone,
+                        &sub_list_clone,
+                        &time_zone_clone,
+                    );
+                    all_conf_list.set(conf_vec);
+                    for acc_item in acc {
+                        for cur_acc in &acc_item.accept_rates {
+                            all_conf_list.update(|conferences| {
+                                for item in conferences.iter_mut() {
+                                    for y in 1..=3 {
+                                        if item.title == acc_item.title && item.year == cur_acc.year + y {
+                                            item.acc_str = Some(cur_acc.str.clone());
+                                        }
+                                    }
+                                }
+                            });
+                        }
+                    }
+                };
+
+                if let Some((cached_confs, cached_acc)) = use_cache() {
+                    process_and_cache(cached_confs, cached_acc);
+                    is_loading.set(false);
+                }
+
+                match fetch_all_conf(&base_url).await {
+                    Ok(conferences) => {
+                        set_cached_conferences(conferences.clone());
+                        match fetch_all_acc(&base_url).await {
+                            Ok(all_acc) => {
+                                set_cached_acc(all_acc.clone());
+                                let like_list_clone = like_list.get();
+                                let sub_list_clone = sub_list.get();
+                                let time_zone_clone = time_zone.get_untracked();
+                                let conf_vec = process_conferences(
+                                    conferences,
+                                    &utc_map,
+                                    &rank_options,
+                                    &current_timezone,
+                                    &like_list_clone,
+                                    &sub_list_clone,
+                                    &time_zone_clone,
+                                );
+                                all_conf_list.set(conf_vec);
+                                for acc_item in all_acc {
+                                    for cur_acc in &acc_item.accept_rates {
+                                        all_conf_list.update(|conferences| {
+                                            for item in conferences.iter_mut() {
+                                                for y in 1..=3 {
+                                                    if item.title == acc_item.title && item.year == cur_acc.year + y {
+                                                        item.acc_str = Some(cur_acc.str.clone());
+                                                    }
+                                                }
+                                            }
+                                        });
+                                    }
+                                }
+                            }
+                            Err(e) => {
+                                console::error_1(&format!("Error: {:?}", e).into());
+                                if all_conf_list.get().is_empty() {
+                                    load_error.set(Some(format!("Failed to load acceptance rates: {:?}", e)));
+                                }
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        console::error_1(&format!("Error: {:?}", e).into());
+                        if all_conf_list.get().is_empty() {
+                            load_error.set(Some(format!("Failed to load conferences: {:?}", e)));
+                        }
+                    }
+                }
+
+                is_loading.set(false);
+            });
+        }
+    };
+
     Effect::new(move || {
         // mobile check
         is_mobile.set(is_mobile_device());
@@ -185,102 +302,7 @@ pub fn ShowTable() -> impl IntoView {
         // timezone
         time_zone.set(get_timezone_name().unwrap());
 
-        spawn_local(async move {
-            let utc_map = load_utc_map();
-            let rank_options: HashMap<&str, &str> = RANK_OPTIONS.iter().cloned().collect();
-            let (current_timezone, _) = (get_browser_time_and_timezone().1, ());
-
-            let window = web_sys::window().unwrap();
-            let location = window.location();
-            let base_url = location.origin().unwrap();
-
-            let use_cache = || -> Option<(Vec<Conference>, Vec<ConfAccRate>)> {
-                let cached_confs = get_cached_conferences()?;
-                let cached_acc = get_cached_acc()?;
-                Some((cached_confs, cached_acc))
-            };
-
-            let process_and_cache = |conferences: Vec<Conference>, acc: Vec<ConfAccRate>| {
-                let like_list_clone = like_list.get();
-                let sub_list_clone = sub_list.get();
-                let conf_vec = process_conferences(
-                    conferences,
-                    &utc_map,
-                    &rank_options,
-                    &current_timezone,
-                    &like_list_clone,
-                    &sub_list_clone,
-                );
-                all_conf_list.set(conf_vec);
-                for acc_item in acc {
-                    for cur_acc in &acc_item.accept_rates {
-                        all_conf_list.update(|conferences| {
-                            for item in conferences.iter_mut() {
-                                for y in 1..=3 {
-                                    if item.title == acc_item.title && item.year == cur_acc.year + y {
-                                        item.acc_str = Some(cur_acc.str.clone());
-                                    }
-                                }
-                            }
-                        });
-                    }
-                }
-            };
-
-            if let Some((cached_confs, cached_acc)) = use_cache() {
-                process_and_cache(cached_confs, cached_acc);
-                is_loading.set(false);
-            }
-
-            match fetch_all_conf(&base_url).await {
-                Ok(conferences) => {
-                    set_cached_conferences(conferences.clone());
-                    match fetch_all_acc(&base_url).await {
-                        Ok(all_acc) => {
-                            set_cached_acc(all_acc.clone());
-                            let like_list_clone = like_list.get();
-                            let sub_list_clone = sub_list.get();
-                            let conf_vec = process_conferences(
-                                conferences,
-                                &utc_map,
-                                &rank_options,
-                                &current_timezone,
-                                &like_list_clone,
-                                &sub_list_clone,
-                            );
-                            all_conf_list.set(conf_vec);
-                            for acc_item in all_acc {
-                                for cur_acc in &acc_item.accept_rates {
-                                    all_conf_list.update(|conferences| {
-                                        for item in conferences.iter_mut() {
-                                            for y in 1..=3 {
-                                                if item.title == acc_item.title && item.year == cur_acc.year + y {
-                                                    item.acc_str = Some(cur_acc.str.clone());
-                                                }
-                                            }
-                                        }
-                                    });
-                                }
-                            }
-                        }
-                        Err(e) => {
-                            console::error_1(&format!("Error: {:?}", e).into());
-                            if all_conf_list.get().is_empty() {
-                                load_error.set(Some(format!("Failed to load acceptance rates: {:?}", e)));
-                            }
-                        }
-                    }
-                }
-                Err(e) => {
-                    console::error_1(&format!("Error: {:?}", e).into());
-                    if all_conf_list.get().is_empty() {
-                        load_error.set(Some(format!("Failed to load conferences: {:?}", e)));
-                    }
-                }
-            }
-
-            is_loading.set(false);
-        });
+        fetch_data();
     });
 
     let paginated_list = Memo::new(move |_| {
@@ -592,6 +614,7 @@ pub fn ShowTable() -> impl IntoView {
                                                     on:click=move |_| {
                                                         load_error.set(None);
                                                         is_loading.set(true);
+                                                        fetch_data();
                                                     }
                                                 >
                                                     "重试"
@@ -1058,6 +1081,7 @@ fn process_conferences(
     current_timezone: &chrono::FixedOffset,
     like_list: &HashSet<String>,
     sub_list: &[Category],
+    time_zone: &str,
 ) -> Vec<ConfItem> {
     let mut conf_vec = Vec::new();
     let current_time = get_browser_time_and_timezone().0;
@@ -1222,7 +1246,7 @@ fn process_conferences(
                         item.comment.as_ref().map_or("".to_string(), |c| c.clone()),
                         "provided by @ccfddl".to_string()
                     )),
-                    get_timezone_name().unwrap_or_default(),
+                    time_zone,
                 ));
 
                 item.icloud_calendar_url = Some(format!(
