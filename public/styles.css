@@ -463,6 +463,17 @@ a {
     background: var(--surface-elevated);
     box-shadow: inset 0 1px 0
         color-mix(in srgb, var(--color-bg-elevated) 65%, transparent);
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    transition: max-height 0.3s ease-out, opacity 0.3s ease-out, padding 0.3s ease-out;
+    padding: 0 10px;
+}
+
+.mobile-filter-panel.expanded {
+    max-height: 500px;
+    opacity: 1;
+    padding: 10px;
 }
 
 * input::placeholder {
@@ -1276,6 +1287,76 @@ a {
 /* ==================== 骨架屏样式 ==================== */
 .skeleton-container {
     animation: skeletonPulse 1.5s ease-in-out infinite;
+}
+
+.skeleton-container {
+    animation: fadeIn 0.3s ease-out, skeletonPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.error-state-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 24px;
+    text-align: center;
+    animation: fadeIn 0.3s ease-out;
+}
+
+.error-icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: var(--color-error-light, #fee2e2);
+    color: var(--color-error, #dc2626);
+    font-size: 32px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 16px;
+}
+
+.error-message {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin-bottom: 8px;
+}
+
+.error-detail {
+    font-size: 14px;
+    color: var(--color-text-secondary);
+    margin-bottom: 24px;
+    max-width: 400px;
+    word-break: break-word;
+}
+
+.retry-button {
+    padding: 10px 24px;
+    background: var(--color-primary);
+    color: white;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.retry-button:hover {
+    background: var(--color-primary-hover);
 }
 
 .skeleton-header {

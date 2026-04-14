@@ -42,6 +42,66 @@
 </head>
 
 
-<body></body>
+<body>
+  <div id="loading">
+    <div class="loading-spinner"></div>
+    <div class="loading-text">Loading CCF Deadlines...</div>
+  </div>
+  <style>
+    #loading {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: var(--color-bg, #ffffff);
+      z-index: 9999;
+      transition: opacity 0.3s ease-out;
+    }
+    #loading.fade-out {
+      opacity: 0;
+      pointer-events: none;
+    }
+    .loading-spinner {
+      width: 48px;
+      height: 48px;
+      border: 4px solid var(--color-border, #e5e7eb);
+      border-top-color: var(--color-primary, #3b82f6);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    .loading-text {
+      margin-top: 16px;
+      font-size: 16px;
+      color: var(--color-text-secondary, #6b7280);
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    @media (prefers-color-scheme: dark) {
+      #loading {
+        background: var(--color-bg, #1f2937);
+      }
+      .loading-text {
+        color: var(--color-text-secondary, #9ca3af);
+      }
+    }
+  </style>
+  <script>
+    window.addEventListener('load', function() {
+      var loading = document.getElementById('loading');
+      if (loading) {
+        loading.classList.add('fade-out');
+        setTimeout(function() {
+          loading.remove();
+        }, 300);
+      }
+    });
+  </script>
+</body>
 
 </html>

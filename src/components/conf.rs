@@ -1,7 +1,7 @@
 use chrono::prelude::*;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Conference {
     pub title: String,
     pub description: String,
@@ -11,14 +11,14 @@ pub struct Conference {
     pub confs: Vec<ConferenceYear>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Rank {
     pub ccf: String,
     pub core: Option<String>,
     pub thcpl: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ConferenceYear {
     pub year: i32,
     pub id: String,
@@ -29,13 +29,13 @@ pub struct ConferenceYear {
     pub place: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ConfAccRate {
     pub title: String,
     pub accept_rates: Vec<AccYear>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct AccYear {
     pub year: i32,
     pub submitted: i32,
@@ -185,3 +185,96 @@ pub async fn fetch_all_category() -> Result<Vec<Category>, Box<dyn std::error::E
     let conferences: Vec<Category> = serde_yaml::from_str(&contents)?;
     Ok(conferences)
 }
+
+const CACHE_KEY_CONFERENCES: &str = "cached_conferences";
+const CACHE_KEY_ACC: &str = "cached_acc";
+const CACHE_EXPIRY_HOURS: i64 = 24;
+
+#[cfg(target_arch = "wasm32")]
+pub fn get_cached_conferences() -> Option<Vec<Conference>> {
+    use web_sys::window;
+    let window = window()?;
+    let local_storage = window.local_storage().ok()??;
+    let cached = local_storage.get_item(CACHE_KEY_CONFERENCES).ok()??;
+    if let Ok(cached_data) = serde_json::from_str::<CachedData<Vec<Conference>>>(&cached) {
+        if cached_data.is_expired() {
+            return None;
+        }
+        return Some(cached_data.data);
+    }
+    None
+}
+
+#[cfg(target_arch = "wasm32")]
+pub fn set_cached_conferences(conferences: Vec<Conference>) {
+    use web_sys::window;
+    if let Some(win) = window() {
+        if let Ok(Some(storage)) = win.local_storage() {
+            let cache_data = CachedData::new(conferences);
+            if let Ok(json) = serde_json::to_string(&cache_data) {
+                let _ = storage.set_item(CACHE_KEY_CONFERENCES, &json);
+            }
+        }
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+pub fn get_cached_acc() -> Option<Vec<ConfAccRate>> {
+    use web_sys::window;
+    let window = window()?;
+    let local_storage = window.local_storage().ok()??;
+    let cached = local_storage.get_item(CACHE_KEY_ACC).ok()??;
+    if let Ok(cached_data) = serde_json::from_str::<CachedData<Vec<ConfAccRate>>>(&cached) {
+        if cached_data.is_expired() {
+            return None;
+        }
+        return Some(cached_data.data);
+    }
+    None
+}
+
+#[cfg(target_arch = "wasm32")]
+pub fn set_cached_acc(acc: Vec<ConfAccRate>) {
+    use web_sys::window;
+    if let Some(win) = window() {
+        if let Ok(Some(storage)) = win.local_storage() {
+            let cache_data = CachedData::new(acc);
+            if let Ok(json) = serde_json::to_string(&cache_data) {
+                let _ = storage.set_item(CACHE_KEY_ACC, &json);
+            }
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct CachedData<T> {
+    data: T,
+    timestamp: i64,
+}
+
+impl<T> CachedData<T> {
+    fn new(data: T) -> Self {
+        Self {
+            data,
+            timestamp: chrono::Utc::now().timestamp(),
+        }
+    }
+
+    fn is_expired(&self) -> bool {
+        let now = chrono::Utc::now().timestamp();
+        let hours_elapsed = (now - self.timestamp) / 3600;
+        hours_elapsed >= CACHE_EXPIRY_HOURS
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn get_cached_conferences() -> Option<Vec<Conference>> { None }
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn set_cached_conferences(_conferences: Vec<Conference>) {}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn get_cached_acc() -> Option<Vec<ConfAccRate>> { None }
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn set_cached_acc(_acc: Vec<ConfAccRate>) {}

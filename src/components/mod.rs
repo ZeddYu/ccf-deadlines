@@ -4,6 +4,7 @@ pub mod conf;
 pub mod countdown;
 pub mod gitbutton;
 pub mod header;
+pub mod loading;
 pub mod showtable;
 pub mod subscription_modal;
 pub mod theme;

@@ -3,9 +3,14 @@ use crate::components::checkbox_button::*;
 use crate::components::conf::ConfItem;
 use crate::components::conf::*;
 use crate::components::countdown::CountDown;
+use crate::components::loading::LoadingSkeleton;
 use crate::components::subscription_modal::*;
 use crate::components::timeline::*;
 use crate::components::timezone::*;
+use crate::components::conf::{
+    get_cached_acc, get_cached_conferences, set_cached_acc, set_cached_conferences,
+    Conference,
+};
 use chrono::{DateTime, FixedOffset};
 use leptos::prelude::*;
 use serde_json;
@@ -101,6 +106,8 @@ pub fn ShowTable() -> impl IntoView {
 
     // table
     let all_conf_list = RwSignal::new(Vec::<ConfItem>::new());
+    let is_loading = RwSignal::new(true);
+    let load_error = RwSignal::new(Option::<String>::None);
 
     let time_zone = RwSignal::new(String::new());
 
@@ -181,238 +188,98 @@ pub fn ShowTable() -> impl IntoView {
         spawn_local(async move {
             let utc_map = load_utc_map();
             let rank_options: HashMap<&str, &str> = RANK_OPTIONS.iter().cloned().collect();
+            let (current_timezone, _) = (get_browser_time_and_timezone().1, ());
 
-            let (current_time, current_timezone) = get_browser_time_and_timezone();
-
-            // base_url
             let window = web_sys::window().unwrap();
             let location = window.location();
             let base_url = location.origin().unwrap();
 
-            match fetch_all_conf(&base_url).await {
-                Ok(conferences) => {
-                    let mut conf_vec = Vec::new();
+            let use_cache = || -> Option<(Vec<Conference>, Vec<ConfAccRate>)> {
+                let cached_confs = get_cached_conferences()?;
+                let cached_acc = get_cached_acc()?;
+                Some((cached_confs, cached_acc))
+            };
 
-                    for conf in conferences {
-                        let conf_items = conf.confs.iter().map(|year_conf| {
-                            let mut flag = false;
-                            let len = year_conf.timeline.len();
-                            let mut cur_deadline = year_conf.timeline[len - 1].deadline.clone();
-                            let mut cur_abstract_deadline =
-                                year_conf.timeline[len - 1].abstract_deadline.clone();
-                            let mut cur_comment = year_conf.timeline[len - 1].comment.clone();
-                            let mut ddl_vec = Vec::<TimePoint>::new();
-
-                            for timeline_item in year_conf.timeline.iter() {
-                                let tz_offset = utc_map.get(&year_conf.timezone).unwrap();
-
-                                let ddl_str = parse_deadline_to_rfc3339(&timeline_item.deadline, tz_offset);
-
-                                // abstract type:0 submission type:1
-                                if let Some(abs_ddl) = timeline_item.abstract_deadline.clone() {
-                                    let abs_ddl_str = parse_deadline_to_rfc3339(&abs_ddl, tz_offset);
-
-                                    if let Ok(abs_ddl_datetime) =
-                                        DateTime::parse_from_rfc3339(&abs_ddl_str)
-                                    {
-                                        ddl_vec.push(TimePoint {
-                                            timepoint: abs_ddl_datetime
-                                                .with_timezone(&current_timezone)
-                                                .clone(),
-                                            r#type: 0,
-                                        });
+            let process_and_cache = |conferences: Vec<Conference>, acc: Vec<ConfAccRate>| {
+                let like_list_clone = like_list.get();
+                let sub_list_clone = sub_list.get();
+                let conf_vec = process_conferences(
+                    conferences,
+                    &utc_map,
+                    &rank_options,
+                    &current_timezone,
+                    &like_list_clone,
+                    &sub_list_clone,
+                );
+                all_conf_list.set(conf_vec);
+                for acc_item in acc {
+                    for cur_acc in &acc_item.accept_rates {
+                        all_conf_list.update(|conferences| {
+                            for item in conferences.iter_mut() {
+                                for y in 1..=3 {
+                                    if item.title == acc_item.title && item.year == cur_acc.year + y {
+                                        item.acc_str = Some(cur_acc.str.clone());
                                     }
                                 }
-
-                                if let Ok(ddl_datetime) = DateTime::parse_from_rfc3339(&ddl_str) {
-                                    ddl_vec.push(TimePoint {
-                                        timepoint: ddl_datetime
-                                            .with_timezone(&current_timezone)
-                                            .clone(),
-                                        r#type: 1,
-                                    });
-
-                                    let diff = ddl_datetime.signed_duration_since(current_time);
-                                    if !flag && diff.num_milliseconds() > 0 {
-                                        cur_deadline = timeline_item.deadline.clone();
-                                        cur_abstract_deadline =
-                                            timeline_item.abstract_deadline.clone();
-                                        cur_comment = timeline_item.comment.clone();
-                                        flag = true;
-                                    }
-                                }
-                            }
-
-                            ConfItem {
-                                title: conf.title.clone(),
-                                description: conf.description.clone(),
-                                sub: conf.sub.clone(),
-                                rank: conf.rank.ccf.clone(),
-                                corerank: conf.rank.core.clone(),
-                                thcplrank: conf.rank.thcpl.clone(),
-                                displayrank: rank_options
-                                    .get(conf.rank.ccf.as_str())
-                                    .unwrap()
-                                    .to_string(),
-                                dblp: conf.dblp.clone(),
-                                year: year_conf.year,
-                                id: year_conf.id.clone(),
-                                link: year_conf.link.clone(),
-                                abstract_deadline: cur_abstract_deadline,
-                                deadline: cur_deadline,
-                                comment: cur_comment,
-                                timezone: year_conf.timezone.clone(),
-                                date: year_conf.date.clone(),
-                                place: year_conf.place.clone(),
-                                status: "".to_string(), // Placeholder, should be determined based on current date
-                                is_like: like_list.get_untracked().contains(&year_conf.id),
-                                remain: 0,
-                                local_ddl: None,
-                                origin_ddl: None,
-                                subname: "".to_string(),
-                                subname_en: "".to_string(),
-                                google_calendar_url: None,
-                                icloud_calendar_url: None,
-                                acc_str: None,
-                                ddls: ddl_vec,
                             }
                         });
-                        conf_vec.extend(conf_items);
                     }
+                }
+            };
 
-                    for item in conf_vec.iter_mut() {
-                        // subname
-                        if let Some(matched_category) = sub_list
-                            .get_untracked()
-                            .iter()
-                            .find(|sub_item| sub_item.sub == item.sub)
-                        {
-                            item.subname = matched_category.name.clone();
-                            item.subname_en = matched_category.name_en.clone();
-                        }
+            if let Some((cached_confs, cached_acc)) = use_cache() {
+                process_and_cache(cached_confs, cached_acc);
+                is_loading.set(false);
+            }
 
-                        if item.deadline == "TBD" {
-                            item.remain = 0;
-                            item.status = "TBD".to_string();
-                            continue;
-                        }
-
-                        let tz_str = normalize_timezone(&item.timezone);
-
-                        // 4. Calculate deadlines and remaining time
-                        if let Some(tz_offset) = utc_map.get(&tz_str) {
-                            let ddl_str = parse_deadline_to_rfc3339(&item.deadline, tz_offset);
-
-                            if let Ok(ddl_datetime) = DateTime::parse_from_rfc3339(&ddl_str) {
-                                // Convert to browser local time and format
-                                let local_ddl_datetime =
-                                    ddl_datetime.with_timezone(&current_timezone);
-                                let formatted_date_time =
-                                    local_ddl_datetime.format("%Y-%m-%d %H:%M:%S").to_string();
-                                let offset_seconds = local_ddl_datetime.offset().local_minus_utc();
-                                let offset_hours = offset_seconds / 3600;
-                                let formatted_timezone = format!("UTC{:+}", offset_hours);
-
-                                item.local_ddl =
-                                    Some(format!("{} {}", formatted_date_time, formatted_timezone));
-                                item.origin_ddl =
-                                    Some(format!("{} {}", item.deadline, item.timezone));
-
-                                // Handle abstract deadline
-                                if let Some(abs_ddl) = &item.abstract_deadline {
-                                    let abs_ddl_str = parse_deadline_to_rfc3339(abs_ddl, tz_offset);
-                                    if let Ok(abs_datetime) =
-                                        DateTime::parse_from_rfc3339(&abs_ddl_str)
-                                    {
-                                        let formatted_abs_ddl = abs_datetime
-                                            .with_timezone(&current_timezone)
-                                            .format("%b %e, %Y")
-                                            .to_string();
-                                        if item.comment.is_none() {
-                                            item.comment = Some(format!(
-                                                "abstract deadline on {}.",
-                                                formatted_abs_ddl
-                                            ));
+            match fetch_all_conf(&base_url).await {
+                Ok(conferences) => {
+                    set_cached_conferences(conferences.clone());
+                    match fetch_all_acc(&base_url).await {
+                        Ok(all_acc) => {
+                            set_cached_acc(all_acc.clone());
+                            let like_list_clone = like_list.get();
+                            let sub_list_clone = sub_list.get();
+                            let conf_vec = process_conferences(
+                                conferences,
+                                &utc_map,
+                                &rank_options,
+                                &current_timezone,
+                                &like_list_clone,
+                                &sub_list_clone,
+                            );
+                            all_conf_list.set(conf_vec);
+                            for acc_item in all_acc {
+                                for cur_acc in &acc_item.accept_rates {
+                                    all_conf_list.update(|conferences| {
+                                        for item in conferences.iter_mut() {
+                                            for y in 1..=3 {
+                                                if item.title == acc_item.title && item.year == cur_acc.year + y {
+                                                    item.acc_str = Some(cur_acc.str.clone());
+                                                }
+                                            }
                                         }
-                                    }
+                                    });
                                 }
-
-                                let diff = ddl_datetime.signed_duration_since(current_time);
-                                if diff.num_milliseconds() <= 0 {
-                                    item.remain = 0;
-                                    item.status = "FIN".to_string();
-                                } else {
-                                    item.remain = diff.num_milliseconds() as u64;
-                                    item.status = "RUN".to_string();
-                                }
-
-                                let iso_string =
-                                    local_ddl_datetime.format("%Y%m%dT%H%M%S").to_string();
-
-                                item.google_calendar_url = Some(format!(
-                                    "https://www.google.com/calendar/render?action=TEMPLATE&text={}&dates={}/{}&details={:?}&location=Online&ctz={}&sf=true&output=xml",
-                                    encode(&format!("{} {}", item.title, item.year)),
-                                    iso_string,
-                                    iso_string,
-                                    encode(&format!(
-                                        "{} {}",
-                                        item.comment.as_ref().map_or("".to_string(), |c| c.clone()),
-                                        "provided by @ccfddl".to_string()
-                                    )),
-                                    time_zone.get_untracked(),
-                                ));
-
-                                item.icloud_calendar_url = Some(format!(
-                                    "data:text/calendar;charset=utf8,BEGIN:VCALENDAR\n\
-                                    VERSION:2.0\n\
-                                    BEGIN:VEVENT\n\
-                                    URL:{}\n\
-                                    DTSTART:{}\n\
-                                    DTEND:{}\n\
-                                    SUMMARY:{}\n\
-                                    DESCRIPTION:{}\n\
-                                    LOCATION:{}\n\
-                                    END:VEVENT\n\
-                                    END:VCALENDAR",
-                                    encode("https://ccfddl.github.io/"),
-                                    iso_string,
-                                    iso_string,
-                                    encode(&format!("{} {} Deadline", item.title, item.year)),
-                                    encode(item.comment.as_ref().map_or("", |c| c.as_str())),
-                                    encode(""),
-                                ));
+                            }
+                        }
+                        Err(e) => {
+                            console::error_1(&format!("Error: {:?}", e).into());
+                            if all_conf_list.get().is_empty() {
+                                load_error.set(Some(format!("Failed to load acceptance rates: {:?}", e)));
                             }
                         }
                     }
-                    all_conf_list.set(conf_vec);
                 }
                 Err(e) => {
                     console::error_1(&format!("Error: {:?}", e).into());
+                    if all_conf_list.get().is_empty() {
+                        load_error.set(Some(format!("Failed to load conferences: {:?}", e)));
+                    }
                 }
             }
 
-            match fetch_all_acc(&base_url).await {
-                Ok(all_acc) => {
-                    for acc_item in all_acc {
-                        for cur_acc in &acc_item.accept_rates {
-                            all_conf_list.update(|conferences| {
-                                for item in conferences.iter_mut() {
-                                    for y in 1..=3 {
-                                        if item.title == acc_item.title
-                                            && item.year == cur_acc.year + y
-                                        {
-                                            item.acc_str = Some(cur_acc.str.clone());
-                                        }
-                                    }
-                                }
-                            });
-                        }
-                    }
-                }
-                Err(e) => {
-                    console::error_1(&format!("Error: {:?}", e).into());
-                }
-            }
+            is_loading.set(false);
         });
     });
 
@@ -618,7 +485,7 @@ pub fn ShowTable() -> impl IntoView {
                                     {move || {
                                         if show_filters.get() {
                                             view! {
-                                                <div class="mobile-filter-panel">
+                                                <div class="mobile-filter-panel expanded">
                                                     <MultiSelectDropdown
                                                         dropdown_id="ccf".to_string()
                                                         title="CCF".to_string()
@@ -650,7 +517,9 @@ pub fn ShowTable() -> impl IntoView {
                                             }
                                                 .into_any()
                                         } else {
-                                            view! {}.into_any()
+                                            view! {
+                                                <div class="mobile-filter-panel"></div>
+                                            }.into_any()
                                         }
                                     }}
                                 </div>
@@ -708,7 +577,31 @@ pub fn ShowTable() -> impl IntoView {
                 <Table>
                     <TableBody>
                         {move || {
-                            if paginated_list.get().is_empty() {
+                            if is_loading.get() {
+                                view! { <LoadingSkeleton /> }.into_any()
+                            } else if let Some(err) = load_error.get() {
+                                view! {
+                                    <TableRow>
+                                        <TableCell>
+                                            <div class="error-state-container">
+                                                <div class="error-icon">!</div>
+                                                <div class="error-message">"加载失败"</div>
+                                                <div class="error-detail">{err}</div>
+                                                <button
+                                                    class="retry-button"
+                                                    on:click=move |_| {
+                                                        load_error.set(None);
+                                                        is_loading.set(true);
+                                                    }
+                                                >
+                                                    "重试"
+                                                </button>
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                }
+                                    .into_any()
+                            } else if paginated_list.get().is_empty() {
                                 view! {
                                     <TableRow>
                                         <TableCell>
@@ -1156,4 +1049,204 @@ fn set_in_local_storage(key: &str, value: &str) {
     let window = window().unwrap();
     let local_storage = window.local_storage().ok().flatten().unwrap();
     local_storage.set_item(key, value).unwrap();
+}
+
+fn process_conferences(
+    conferences: Vec<Conference>,
+    utc_map: &HashMap<String, String>,
+    rank_options: &HashMap<&str, &str>,
+    current_timezone: &chrono::FixedOffset,
+    like_list: &HashSet<String>,
+    sub_list: &[Category],
+) -> Vec<ConfItem> {
+    let mut conf_vec = Vec::new();
+    let current_time = get_browser_time_and_timezone().0;
+
+    for conf in conferences {
+        let conf_items = conf.confs.iter().map(|year_conf| {
+            let mut flag = false;
+            let len = year_conf.timeline.len();
+            let mut cur_deadline = year_conf.timeline[len - 1].deadline.clone();
+            let mut cur_abstract_deadline =
+                year_conf.timeline[len - 1].abstract_deadline.clone();
+            let mut cur_comment = year_conf.timeline[len - 1].comment.clone();
+            let mut ddl_vec = Vec::<TimePoint>::new();
+
+            for timeline_item in year_conf.timeline.iter() {
+                let tz_offset = utc_map.get(&year_conf.timezone).unwrap();
+
+                let ddl_str = parse_deadline_to_rfc3339(&timeline_item.deadline, tz_offset);
+
+                if let Some(abs_ddl) = timeline_item.abstract_deadline.clone() {
+                    let abs_ddl_str = parse_deadline_to_rfc3339(&abs_ddl, tz_offset);
+
+                    if let Ok(abs_ddl_datetime) =
+                        DateTime::parse_from_rfc3339(&abs_ddl_str)
+                    {
+                        ddl_vec.push(TimePoint {
+                            timepoint: abs_ddl_datetime
+                                .with_timezone(current_timezone)
+                                .clone(),
+                            r#type: 0,
+                        });
+                    }
+                }
+
+                if let Ok(ddl_datetime) = DateTime::parse_from_rfc3339(&ddl_str) {
+                    ddl_vec.push(TimePoint {
+                        timepoint: ddl_datetime
+                            .with_timezone(current_timezone)
+                            .clone(),
+                        r#type: 1,
+                    });
+
+                    let diff = ddl_datetime.signed_duration_since(current_time);
+                    if !flag && diff.num_milliseconds() > 0 {
+                        cur_deadline = timeline_item.deadline.clone();
+                        cur_abstract_deadline =
+                            timeline_item.abstract_deadline.clone();
+                        cur_comment = timeline_item.comment.clone();
+                        flag = true;
+                    }
+                }
+            }
+
+            ConfItem {
+                title: conf.title.clone(),
+                description: conf.description.clone(),
+                sub: conf.sub.clone(),
+                rank: conf.rank.ccf.clone(),
+                corerank: conf.rank.core.clone(),
+                thcplrank: conf.rank.thcpl.clone(),
+                displayrank: rank_options
+                    .get(conf.rank.ccf.as_str())
+                    .unwrap()
+                    .to_string(),
+                dblp: conf.dblp.clone(),
+                year: year_conf.year,
+                id: year_conf.id.clone(),
+                link: year_conf.link.clone(),
+                abstract_deadline: cur_abstract_deadline,
+                deadline: cur_deadline,
+                comment: cur_comment,
+                timezone: year_conf.timezone.clone(),
+                date: year_conf.date.clone(),
+                place: year_conf.place.clone(),
+                status: "".to_string(),
+                is_like: like_list.contains(&year_conf.id),
+                remain: 0,
+                local_ddl: None,
+                origin_ddl: None,
+                subname: "".to_string(),
+                subname_en: "".to_string(),
+                google_calendar_url: None,
+                icloud_calendar_url: None,
+                acc_str: None,
+                ddls: ddl_vec,
+            }
+        });
+        conf_vec.extend(conf_items);
+    }
+
+    for item in conf_vec.iter_mut() {
+        if let Some(matched_category) = sub_list
+            .iter()
+            .find(|sub_item| sub_item.sub == item.sub)
+        {
+            item.subname = matched_category.name.clone();
+            item.subname_en = matched_category.name_en.clone();
+        }
+
+        if item.deadline == "TBD" {
+            item.remain = 0;
+            item.status = "TBD".to_string();
+            continue;
+        }
+
+        let tz_str = normalize_timezone(&item.timezone);
+
+        if let Some(tz_offset) = utc_map.get(&tz_str) {
+            let ddl_str = parse_deadline_to_rfc3339(&item.deadline, tz_offset);
+
+            if let Ok(ddl_datetime) = DateTime::parse_from_rfc3339(&ddl_str) {
+                let local_ddl_datetime =
+                    ddl_datetime.with_timezone(current_timezone);
+                let formatted_date_time =
+                    local_ddl_datetime.format("%Y-%m-%d %H:%M:%S").to_string();
+                let offset_seconds = local_ddl_datetime.offset().local_minus_utc();
+                let offset_hours = offset_seconds / 3600;
+                let formatted_timezone = format!("UTC{:+}", offset_hours);
+
+                item.local_ddl =
+                    Some(format!("{} {}", formatted_date_time, formatted_timezone));
+                item.origin_ddl =
+                    Some(format!("{} {}", item.deadline, item.timezone));
+
+                if let Some(abs_ddl) = &item.abstract_deadline {
+                    let abs_ddl_str = parse_deadline_to_rfc3339(abs_ddl, tz_offset);
+                    if let Ok(abs_datetime) =
+                        DateTime::parse_from_rfc3339(&abs_ddl_str)
+                    {
+                        let formatted_abs_ddl = abs_datetime
+                            .with_timezone(current_timezone)
+                            .format("%b %e, %Y")
+                            .to_string();
+                        if item.comment.is_none() {
+                            item.comment = Some(format!(
+                                "abstract deadline on {}.",
+                                formatted_abs_ddl
+                            ));
+                        }
+                    }
+                }
+
+                let diff = ddl_datetime.signed_duration_since(current_time);
+                if diff.num_milliseconds() <= 0 {
+                    item.remain = 0;
+                    item.status = "FIN".to_string();
+                } else {
+                    item.remain = diff.num_milliseconds() as u64;
+                    item.status = "RUN".to_string();
+                }
+
+                let iso_string =
+                    local_ddl_datetime.format("%Y%m%dT%H%M%S").to_string();
+
+                item.google_calendar_url = Some(format!(
+                    "https://www.google.com/calendar/render?action=TEMPLATE&text={}&dates={}/{}&details={:?}&location=Online&ctz={}&sf=true&output=xml",
+                    encode(&format!("{} {}", item.title, item.year)),
+                    iso_string,
+                    iso_string,
+                    encode(&format!(
+                        "{} {}",
+                        item.comment.as_ref().map_or("".to_string(), |c| c.clone()),
+                        "provided by @ccfddl".to_string()
+                    )),
+                    get_timezone_name().unwrap_or_default(),
+                ));
+
+                item.icloud_calendar_url = Some(format!(
+                    "data:text/calendar;charset=utf8,BEGIN:VCALENDAR\n\
+                    VERSION:2.0\n\
+                    BEGIN:VEVENT\n\
+                    URL:{}\n\
+                    DTSTART:{}\n\
+                    DTEND:{}\n\
+                    SUMMARY:{}\n\
+                    DESCRIPTION:{}\n\
+                    LOCATION:{}\n\
+                    END:VEVENT\n\
+                    END:VCALENDAR",
+                    encode("https://ccfddl.github.io/"),
+                    iso_string,
+                    iso_string,
+                    encode(&format!("{} {} Deadline", item.title, item.year)),
+                    encode(item.comment.as_ref().map_or("", |c| c.as_str())),
+                    encode(""),
+                ));
+            }
+        }
+    }
+
+    conf_vec
 }
