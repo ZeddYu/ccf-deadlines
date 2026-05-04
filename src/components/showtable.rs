@@ -1,94 +1,86 @@
-use crate::components::calendar_popover::*;
+use crate::components::category_filter_chips::CategoryFilterChips;
 use crate::components::checkbox_button::*;
-use crate::components::conf::ConfItem;
 use crate::components::conf::*;
-use crate::components::countdown::CountDown;
+use crate::components::conference_card::ConferenceCard;
+use crate::components::deadline_utils::*;
+use crate::components::loading::LoadingSkeleton;
+use crate::components::storage::{
+    get_json_from_local_storage, set_in_local_storage, set_json_in_local_storage,
+};
 use crate::components::subscription_modal::*;
-use crate::components::timeline::*;
 use crate::components::timezone::*;
-use chrono::{DateTime, FixedOffset};
+use chrono::DateTime;
 use leptos::prelude::*;
-use serde_json;
 use std::collections::HashMap;
 use std::collections::HashSet;
-use std::sync::OnceLock;
 use thaw::*;
 use urlencoding::encode;
-use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::spawn_local;
-use web_sys::{console, window};
+use web_sys::console;
+
+const DEFAULT_CONFERENCE_CARD_LIST_CLASS: &str =
+    "conference-card-list conference-card-list-comfortable";
+
+fn conference_matches_filters(
+    item: &ConfItem,
+    categories: &HashSet<String>,
+    ccf_ranks: &HashSet<String>,
+    core_ranks: &HashSet<String>,
+    thcpl_ranks: &HashSet<String>,
+    input_lower: &str,
+) -> bool {
+    if !categories.is_empty() && !categories.contains(&item.sub.to_uppercase()) {
+        return false;
+    }
+    if !ccf_ranks.is_empty() && !ccf_ranks.contains(&item.rank) {
+        return false;
+    }
+    if !core_ranks.is_empty() && !core_ranks.contains(item.corerank.as_deref().unwrap_or("N")) {
+        return false;
+    }
+    if !thcpl_ranks.is_empty() && !thcpl_ranks.contains(item.thcplrank.as_deref().unwrap_or("N")) {
+        return false;
+    }
+
+    input_lower.is_empty()
+        || item.id.to_lowercase().contains(input_lower)
+        || item.title.to_lowercase().contains(input_lower)
+}
 
 #[component]
-pub fn ShowTable() -> impl IntoView {
+pub fn ShowTable(use_english: RwSignal<bool>) -> impl IntoView {
     // mobile
     let is_mobile = RwSignal::new(false);
-    let show_filters = RwSignal::new(false);
-
-    // switch
-    let cached_use_english = get_from_local_storage("use_english");
-    let use_english = RwSignal::new(
-        cached_use_english
-            .as_deref()
-            .and_then(|s| s.parse::<bool>().ok())
-            .unwrap_or(false),
-    );
+    let is_loading = RwSignal::new(true);
+    let load_error = RwSignal::new(None::<String>);
 
     // checkbox
     let sub_list = RwSignal::new(get_categories());
-    let cached_check_list: HashSet<String> = get_from_local_storage("types")
-        .and_then(|data| serde_json::from_str(&data).ok())
-        .unwrap_or_else(|| HashSet::new());
+    let cached_check_list: HashSet<String> =
+        get_json_from_local_storage("types").unwrap_or_default();
     let check_list = RwSignal::new(cached_check_list);
-    let is_all_checked_memo = Memo::new(move |_| {
-        let total_count = sub_list.get().len();
-        let checked_count = check_list.get().len();
-        total_count > 0 && checked_count == total_count
-    });
-
-    let is_all_checked = RwSignal::new(false);
-
-    Effect::new(move |_| {
-        is_all_checked.set(is_all_checked_memo.get());
-    });
-
-    let handle_check_all = move |_| {
-        if is_all_checked_memo.get_untracked() {
-            check_list.set(HashSet::new());
-        } else {
-            let all_subs: HashSet<String> = sub_list
-                .get_untracked()
-                .iter()
-                .map(|s| s.sub.clone())
-                .collect();
-            check_list.set(all_subs);
-        }
-    };
-
     // input
     let input_value = RwSignal::new(String::new());
 
     // checkboxbutton
-    let mut cached_rank_list: HashSet<String> = get_from_local_storage("ranks")
-        .and_then(|data| serde_json::from_str(&data).ok())
-        .unwrap_or_else(|| HashSet::new());
+    let mut cached_rank_list: HashSet<String> =
+        get_json_from_local_storage("ranks").unwrap_or_default();
     normalize_rank_filter_selection(&mut cached_rank_list);
     let rank_list = RwSignal::new(cached_rank_list);
-    let mut cached_core_rank_list: HashSet<String> = get_from_local_storage("core_ranks")
-        .and_then(|data| serde_json::from_str(&data).ok())
-        .unwrap_or_else(|| HashSet::new());
+    let mut cached_core_rank_list: HashSet<String> =
+        get_json_from_local_storage("core_ranks").unwrap_or_default();
     normalize_rank_filter_selection(&mut cached_core_rank_list);
     let core_rank_list = RwSignal::new(cached_core_rank_list);
-    let mut cached_thcpl_rank_list: HashSet<String> = get_from_local_storage("thcpl_ranks")
-        .and_then(|data| serde_json::from_str(&data).ok())
-        .unwrap_or_else(|| HashSet::new());
+    let mut cached_thcpl_rank_list: HashSet<String> =
+        get_json_from_local_storage("thcpl_ranks").unwrap_or_default();
     normalize_rank_filter_selection(&mut cached_thcpl_rank_list);
     let thcpl_rank_list = RwSignal::new(cached_thcpl_rank_list);
     let open_dropdown = RwSignal::new(None::<String>);
+    let show_mobile_filters = RwSignal::new(false);
 
     // liked
-    let cached_like_list: HashSet<String> = get_from_local_storage("likes")
-        .and_then(|data| serde_json::from_str(&data).ok())
-        .unwrap_or_else(|| HashSet::new());
+    let cached_like_list: HashSet<String> =
+        get_json_from_local_storage("likes").unwrap_or_default();
     let like_list = RwSignal::new(cached_like_list);
 
     let show_subscription_modal = RwSignal::new(false);
@@ -96,20 +88,20 @@ pub fn ShowTable() -> impl IntoView {
     // pagination
     let page = RwSignal::new(1);
     let page_size = RwSignal::new(10);
-    let page_count = RwSignal::new(1);
     let is_filter_change = RwSignal::new(false);
 
     // table
     let all_conf_list = RwSignal::new(Vec::<ConfItem>::new());
+    let acceptance_rates = RwSignal::new(HashMap::<String, String>::new());
 
     let time_zone = RwSignal::new(String::new());
 
     Effect::new(move |_| {
-        let _ = check_list.get();
-        let _ = input_value.get();
-        let _ = rank_list.get();
-        let _ = core_rank_list.get();
-        let _ = thcpl_rank_list.get();
+        check_list.with(|_| ());
+        input_value.with(|_| ());
+        rank_list.with(|_| ());
+        core_rank_list.with(|_| ());
+        thcpl_rank_list.with(|_| ());
 
         if is_filter_change.get_untracked() {
             page.set(1);
@@ -120,28 +112,34 @@ pub fn ShowTable() -> impl IntoView {
 
     Effect::new(move |_| {
         set_in_local_storage("use_english", &use_english.get().to_string());
-        set_in_local_storage("types", &serde_json::to_string(&check_list.get()).unwrap());
-        set_in_local_storage("ranks", &serde_json::to_string(&rank_list.get()).unwrap());
-        set_in_local_storage(
-            "core_ranks",
-            &serde_json::to_string(&core_rank_list.get()).unwrap(),
-        );
-        set_in_local_storage(
-            "thcpl_ranks",
-            &serde_json::to_string(&thcpl_rank_list.get()).unwrap(),
-        );
     });
 
     Effect::new(move |_| {
-        set_in_local_storage("likes", &serde_json::to_string(&like_list.get()).unwrap());
+        check_list.with(|list| set_json_in_local_storage("types", list));
     });
 
     Effect::new(move |_| {
-        let _ = check_list.get();
-        let _ = input_value.get();
-        let _ = rank_list.get();
-        let _ = core_rank_list.get();
-        let _ = thcpl_rank_list.get();
+        rank_list.with(|list| set_json_in_local_storage("ranks", list));
+    });
+
+    Effect::new(move |_| {
+        core_rank_list.with(|list| set_json_in_local_storage("core_ranks", list));
+    });
+
+    Effect::new(move |_| {
+        thcpl_rank_list.with(|list| set_json_in_local_storage("thcpl_ranks", list));
+    });
+
+    Effect::new(move |_| {
+        like_list.with(|list| set_json_in_local_storage("likes", list));
+    });
+
+    Effect::new(move |_| {
+        check_list.with(|_| ());
+        input_value.with(|_| ());
+        rank_list.with(|_| ());
+        core_rank_list.with(|_| ());
+        thcpl_rank_list.with(|_| ());
         let _ = page.get();
 
         let (current_time, _) = get_browser_time_and_timezone();
@@ -149,7 +147,7 @@ pub fn ShowTable() -> impl IntoView {
 
         all_conf_list.update(|conferences| {
             for item in conferences.iter_mut() {
-                if item.deadline != "TBD" {
+                if item.deadline != STATUS_TBD {
                     let tz_str = normalize_timezone(&item.timezone);
 
                     if let Some(tz_offset) = utc_map.get(&tz_str) {
@@ -159,10 +157,10 @@ pub fn ShowTable() -> impl IntoView {
                             let diff = ddl_datetime.signed_duration_since(current_time);
                             if diff.num_milliseconds() <= 0 {
                                 item.remain = 0;
-                                item.status = "FIN".to_string();
+                                item.status = STATUS_FIN.to_string();
                             } else {
                                 item.remain = diff.num_milliseconds() as u64;
-                                item.status = "RUN".to_string();
+                                item.status = STATUS_RUN.to_string();
                             }
                         }
                     }
@@ -176,238 +174,240 @@ pub fn ShowTable() -> impl IntoView {
         is_mobile.set(is_mobile_device());
 
         // timezone
-        time_zone.set(get_timezone_name().unwrap());
+        time_zone.set(get_timezone_name().unwrap_or_else(|| "UTC".to_string()));
 
         spawn_local(async move {
             let utc_map = load_utc_map();
-            let rank_options: HashMap<&str, &str> = RANK_OPTIONS.iter().cloned().collect();
-
             let (current_time, current_timezone) = get_browser_time_and_timezone();
 
-            // base_url
-            let window = web_sys::window().unwrap();
-            let location = window.location();
-            let base_url = location.origin().unwrap();
+            let Some(base_url) = current_origin() else {
+                let message = "Unable to read browser location origin";
+                console::error_1(&message.into());
+                load_error.set(Some(message.to_string()));
+                is_loading.set(false);
+                return;
+            };
 
-            match fetch_all_conf(&base_url).await {
-                Ok(conferences) => {
-                    let mut conf_vec = Vec::new();
-
-                    for conf in conferences {
-                        let conf_items = conf.confs.iter().map(|year_conf| {
-                            let mut flag = false;
-                            let len = year_conf.timeline.len();
-                            let mut cur_deadline = year_conf.timeline[len - 1].deadline.clone();
-                            let mut cur_abstract_deadline =
-                                year_conf.timeline[len - 1].abstract_deadline.clone();
-                            let mut cur_comment = year_conf.timeline[len - 1].comment.clone();
-                            let mut ddl_vec = Vec::<TimePoint>::new();
-
-                            for timeline_item in year_conf.timeline.iter() {
-                                let tz_offset = utc_map.get(&year_conf.timezone).unwrap();
-
-                                let ddl_str = parse_deadline_to_rfc3339(&timeline_item.deadline, tz_offset);
-
-                                // abstract type:0 submission type:1
-                                if let Some(abs_ddl) = timeline_item.abstract_deadline.clone() {
-                                    let abs_ddl_str = parse_deadline_to_rfc3339(&abs_ddl, tz_offset);
-
-                                    if let Ok(abs_ddl_datetime) =
-                                        DateTime::parse_from_rfc3339(&abs_ddl_str)
-                                    {
-                                        ddl_vec.push(TimePoint {
-                                            timepoint: abs_ddl_datetime
-                                                .with_timezone(&current_timezone)
-                                                .clone(),
-                                            r#type: 0,
-                                        });
-                                    }
-                                }
-
-                                if let Ok(ddl_datetime) = DateTime::parse_from_rfc3339(&ddl_str) {
-                                    ddl_vec.push(TimePoint {
-                                        timepoint: ddl_datetime
-                                            .with_timezone(&current_timezone)
-                                            .clone(),
-                                        r#type: 1,
-                                    });
-
-                                    let diff = ddl_datetime.signed_duration_since(current_time);
-                                    if !flag && diff.num_milliseconds() > 0 {
-                                        cur_deadline = timeline_item.deadline.clone();
-                                        cur_abstract_deadline =
-                                            timeline_item.abstract_deadline.clone();
-                                        cur_comment = timeline_item.comment.clone();
-                                        flag = true;
-                                    }
-                                }
-                            }
-
-                            ConfItem {
-                                title: conf.title.clone(),
-                                description: conf.description.clone(),
-                                sub: conf.sub.clone(),
-                                rank: conf.rank.ccf.clone(),
-                                corerank: conf.rank.core.clone(),
-                                thcplrank: conf.rank.thcpl.clone(),
-                                displayrank: rank_options
-                                    .get(conf.rank.ccf.as_str())
-                                    .unwrap()
-                                    .to_string(),
-                                dblp: conf.dblp.clone(),
-                                year: year_conf.year,
-                                id: year_conf.id.clone(),
-                                link: year_conf.link.clone(),
-                                abstract_deadline: cur_abstract_deadline,
-                                deadline: cur_deadline,
-                                comment: cur_comment,
-                                timezone: year_conf.timezone.clone(),
-                                date: year_conf.date.clone(),
-                                place: year_conf.place.clone(),
-                                status: "".to_string(), // Placeholder, should be determined based on current date
-                                is_like: like_list.get_untracked().contains(&year_conf.id),
-                                remain: 0,
-                                local_ddl: None,
-                                origin_ddl: None,
-                                subname: "".to_string(),
-                                subname_en: "".to_string(),
-                                google_calendar_url: None,
-                                icloud_calendar_url: None,
-                                acc_str: None,
-                                ddls: ddl_vec,
-                            }
-                        });
-                        conf_vec.extend(conf_items);
-                    }
-
-                    for item in conf_vec.iter_mut() {
-                        // subname
-                        if let Some(matched_category) = sub_list
-                            .get_untracked()
-                            .iter()
-                            .find(|sub_item| sub_item.sub == item.sub)
-                        {
-                            item.subname = matched_category.name.clone();
-                            item.subname_en = matched_category.name_en.clone();
-                        }
-
-                        if item.deadline == "TBD" {
-                            item.remain = 0;
-                            item.status = "TBD".to_string();
-                            continue;
-                        }
-
-                        let tz_str = normalize_timezone(&item.timezone);
-
-                        // 4. Calculate deadlines and remaining time
-                        if let Some(tz_offset) = utc_map.get(&tz_str) {
-                            let ddl_str = parse_deadline_to_rfc3339(&item.deadline, tz_offset);
-
-                            if let Ok(ddl_datetime) = DateTime::parse_from_rfc3339(&ddl_str) {
-                                // Convert to browser local time and format
-                                let local_ddl_datetime =
-                                    ddl_datetime.with_timezone(&current_timezone);
-                                let formatted_date_time =
-                                    local_ddl_datetime.format("%Y-%m-%d %H:%M:%S").to_string();
-                                let offset_seconds = local_ddl_datetime.offset().local_minus_utc();
-                                let offset_hours = offset_seconds / 3600;
-                                let formatted_timezone = format!("UTC{:+}", offset_hours);
-
-                                item.local_ddl =
-                                    Some(format!("{} {}", formatted_date_time, formatted_timezone));
-                                item.origin_ddl =
-                                    Some(format!("{} {}", item.deadline, item.timezone));
-
-                                // Handle abstract deadline
-                                if let Some(abs_ddl) = &item.abstract_deadline {
-                                    let abs_ddl_str = parse_deadline_to_rfc3339(abs_ddl, tz_offset);
-                                    if let Ok(abs_datetime) =
-                                        DateTime::parse_from_rfc3339(&abs_ddl_str)
-                                    {
-                                        let formatted_abs_ddl = abs_datetime
-                                            .with_timezone(&current_timezone)
-                                            .format("%b %e, %Y")
-                                            .to_string();
-                                        if item.comment.is_none() {
-                                            item.comment = Some(format!(
-                                                "abstract deadline on {}.",
-                                                formatted_abs_ddl
-                                            ));
-                                        }
-                                    }
-                                }
-
-                                let diff = ddl_datetime.signed_duration_since(current_time);
-                                if diff.num_milliseconds() <= 0 {
-                                    item.remain = 0;
-                                    item.status = "FIN".to_string();
-                                } else {
-                                    item.remain = diff.num_milliseconds() as u64;
-                                    item.status = "RUN".to_string();
-                                }
-
-                                let iso_string =
-                                    local_ddl_datetime.format("%Y%m%dT%H%M%S").to_string();
-
-                                item.google_calendar_url = Some(format!(
-                                    "https://www.google.com/calendar/render?action=TEMPLATE&text={}&dates={}/{}&details={:?}&location=Online&ctz={}&sf=true&output=xml",
-                                    encode(&format!("{} {}", item.title, item.year)),
-                                    iso_string,
-                                    iso_string,
-                                    encode(&format!(
-                                        "{} {}",
-                                        item.comment.as_ref().map_or("".to_string(), |c| c.clone()),
-                                        "provided by @ccfddl".to_string()
-                                    )),
-                                    time_zone.get_untracked(),
-                                ));
-
-                                item.icloud_calendar_url = Some(format!(
-                                    "data:text/calendar;charset=utf8,BEGIN:VCALENDAR\n\
-                                    VERSION:2.0\n\
-                                    BEGIN:VEVENT\n\
-                                    URL:{}\n\
-                                    DTSTART:{}\n\
-                                    DTEND:{}\n\
-                                    SUMMARY:{}\n\
-                                    DESCRIPTION:{}\n\
-                                    LOCATION:{}\n\
-                                    END:VEVENT\n\
-                                    END:VCALENDAR",
-                                    encode("https://ccfddl.github.io/"),
-                                    iso_string,
-                                    iso_string,
-                                    encode(&format!("{} {} Deadline", item.title, item.year)),
-                                    encode(item.comment.as_ref().map_or("", |c| c.as_str())),
-                                    encode(""),
-                                ));
-                            }
-                        }
-                    }
-                    all_conf_list.set(conf_vec);
-                }
+            let conferences = match fetch_all_conf(&base_url).await {
+                Ok(conferences) => conferences,
                 Err(e) => {
                     console::error_1(&format!("Error: {:?}", e).into());
+                    load_error.set(Some("Unable to load conference data.".to_string()));
+                    is_loading.set(false);
+                    return;
+                }
+            };
+
+            let mut conf_vec = Vec::new();
+
+            for conf in conferences {
+                let conf_items = conf.confs.iter().filter_map(|year_conf| {
+                    let last_timeline_item = year_conf.timeline.last()?;
+                    let mut flag = false;
+                    let mut cur_deadline = last_timeline_item.deadline.clone();
+                    let mut cur_abstract_deadline = last_timeline_item.abstract_deadline.clone();
+                    let mut cur_comment = last_timeline_item.comment.clone();
+                    let mut ddl_vec = Vec::<TimePoint>::new();
+                    let tz_str = normalize_timezone(&year_conf.timezone);
+                    let Some(tz_offset) = utc_map.get(&tz_str) else {
+                        console::warn_1(
+                            &format!(
+                                "Unknown timezone for {} {}: {}",
+                                conf.title, year_conf.year, year_conf.timezone
+                            )
+                            .into(),
+                        );
+                        return None;
+                    };
+
+                    for timeline_item in year_conf.timeline.iter() {
+                        let ddl_str = parse_deadline_to_rfc3339(&timeline_item.deadline, tz_offset);
+
+                        if let Some(abs_ddl) = timeline_item.abstract_deadline.clone() {
+                            let abs_ddl_str = parse_deadline_to_rfc3339(&abs_ddl, tz_offset);
+
+                            if let Ok(abs_ddl_datetime) = DateTime::parse_from_rfc3339(&abs_ddl_str)
+                            {
+                                ddl_vec.push(TimePoint {
+                                    timepoint: abs_ddl_datetime.with_timezone(&current_timezone),
+                                    r#type: 0,
+                                });
+                            }
+                        }
+
+                        if let Ok(ddl_datetime) = DateTime::parse_from_rfc3339(&ddl_str) {
+                            ddl_vec.push(TimePoint {
+                                timepoint: ddl_datetime.with_timezone(&current_timezone),
+                                r#type: 1,
+                            });
+
+                            let diff = ddl_datetime.signed_duration_since(current_time);
+                            if !flag && diff.num_milliseconds() > 0 {
+                                cur_deadline = timeline_item.deadline.clone();
+                                cur_abstract_deadline = timeline_item.abstract_deadline.clone();
+                                cur_comment = timeline_item.comment.clone();
+                                flag = true;
+                            }
+                        }
+                    }
+
+                    Some(ConfItem {
+                        title: conf.title.clone(),
+                        description: conf.description.clone(),
+                        sub: conf.sub.clone(),
+                        rank: conf.rank.ccf.clone(),
+                        corerank: conf.rank.core.clone(),
+                        thcplrank: conf.rank.thcpl.clone(),
+                        displayrank: format_rank_label("CCF", &conf.rank.ccf),
+                        dblp: conf.dblp.clone(),
+                        year: year_conf.year,
+                        id: year_conf.id.clone(),
+                        link: year_conf.link.clone(),
+                        abstract_deadline: cur_abstract_deadline,
+                        deadline: cur_deadline,
+                        comment: cur_comment,
+                        timezone: year_conf.timezone.clone(),
+                        date: year_conf.date.clone(),
+                        place: year_conf.place.clone(),
+                        status: String::new(),
+                        is_like: false,
+                        remain: 0,
+                        local_ddl: None,
+                        origin_ddl: None,
+                        subname: "".to_string(),
+                        subname_en: "".to_string(),
+                        google_calendar_url: None,
+                        icloud_calendar_url: None,
+                        ddls: ddl_vec,
+                    })
+                });
+                conf_vec.extend(conf_items);
+            }
+
+            for item in conf_vec.iter_mut() {
+                if let Some(matched_category) = sub_list
+                    .get_untracked()
+                    .iter()
+                    .find(|sub_item| sub_item.sub == item.sub)
+                {
+                    item.subname = matched_category.name.clone();
+                    item.subname_en = matched_category.name_en.clone();
+                }
+
+                if item.deadline == STATUS_TBD {
+                    item.remain = 0;
+                    item.status = STATUS_TBD.to_string();
+                    continue;
+                }
+
+                let tz_str = normalize_timezone(&item.timezone);
+
+                if let Some(tz_offset) = utc_map.get(&tz_str) {
+                    let ddl_str = parse_deadline_to_rfc3339(&item.deadline, tz_offset);
+
+                    if let Ok(ddl_datetime) = DateTime::parse_from_rfc3339(&ddl_str) {
+                        let local_ddl_datetime = ddl_datetime.with_timezone(&current_timezone);
+                        let formatted_date_time =
+                            local_ddl_datetime.format("%Y-%m-%d %H:%M:%S").to_string();
+                        let offset_seconds = local_ddl_datetime.offset().local_minus_utc();
+                        let offset_hours = offset_seconds / 3600;
+                        let formatted_timezone = format!("UTC{:+}", offset_hours);
+
+                        item.local_ddl =
+                            Some(format!("{} {}", formatted_date_time, formatted_timezone));
+                        item.origin_ddl = Some(format!("{} {}", item.deadline, item.timezone));
+
+                        if let Some(abs_ddl) = &item.abstract_deadline {
+                            let abs_ddl_str = parse_deadline_to_rfc3339(abs_ddl, tz_offset);
+                            if let Ok(abs_datetime) = DateTime::parse_from_rfc3339(&abs_ddl_str) {
+                                let formatted_abs_ddl = abs_datetime
+                                    .with_timezone(&current_timezone)
+                                    .format("%b %e, %Y")
+                                    .to_string();
+                                if item.comment.is_none() {
+                                    item.comment = Some(format!(
+                                        "abstract deadline on {}.",
+                                        formatted_abs_ddl
+                                    ));
+                                }
+                            }
+                        }
+
+                        let diff = ddl_datetime.signed_duration_since(current_time);
+                        if diff.num_milliseconds() <= 0 {
+                            item.remain = 0;
+                            item.status = STATUS_FIN.to_string();
+                        } else {
+                            item.remain = diff.num_milliseconds() as u64;
+                            item.status = STATUS_RUN.to_string();
+                        }
+
+                        let iso_string = local_ddl_datetime.format("%Y%m%dT%H%M%S").to_string();
+
+                        item.google_calendar_url = Some(build_google_calendar_url(
+                            &item.title,
+                            item.year,
+                            &iso_string,
+                            &format!(
+                                "{} provided by @ccfddl",
+                                item.comment.as_deref().unwrap_or("")
+                            ),
+                            &time_zone.get_untracked(),
+                        ));
+
+                        item.icloud_calendar_url = Some(format!(
+                            "data:text/calendar;charset=utf8,BEGIN:VCALENDAR\n\
+                            VERSION:2.0\n\
+                            BEGIN:VEVENT\n\
+                            URL:{}\n\
+                            DTSTART:{}\n\
+                            DTEND:{}\n\
+                            SUMMARY:{}\n\
+                            DESCRIPTION:{}\n\
+                            LOCATION:{}\n\
+                            END:VEVENT\n\
+                            END:VCALENDAR",
+                            encode("https://ccfddl.github.io/"),
+                            iso_string,
+                            iso_string,
+                            encode_ical_text(&format!("{} {} Deadline", item.title, item.year)),
+                            encode_ical_text(item.comment.as_ref().map_or("", |c| c.as_str())),
+                            encode_ical_text(""),
+                        ));
+                    }
                 }
             }
+            let conf_acc_keys = conf_vec
+                .iter()
+                .map(|item| (item.id.clone(), item.title.clone(), item.year))
+                .collect::<Vec<_>>();
+
+            load_error.set(None);
+            all_conf_list.set(conf_vec);
+            is_loading.set(false);
 
             match fetch_all_acc(&base_url).await {
                 Ok(all_acc) => {
+                    let mut acc_by_title_year: HashMap<String, HashMap<i32, String>> =
+                        HashMap::new();
                     for acc_item in all_acc {
-                        for cur_acc in &acc_item.accept_rates {
-                            all_conf_list.update(|conferences| {
-                                for item in conferences.iter_mut() {
-                                    for y in 1..=3 {
-                                        if item.title == acc_item.title
-                                            && item.year == cur_acc.year + y
-                                        {
-                                            item.acc_str = Some(cur_acc.str.clone());
-                                        }
-                                    }
-                                }
-                            });
+                        let year_map = acc_by_title_year.entry(acc_item.title).or_default();
+                        for cur_acc in acc_item.accept_rates {
+                            for year_offset in 1..=3 {
+                                year_map.insert(cur_acc.year + year_offset, cur_acc.str.clone());
+                            }
                         }
                     }
+
+                    let mut acc_by_conf_id = HashMap::new();
+                    for (id, title, year) in &conf_acc_keys {
+                        if let Some(year_map) = acc_by_title_year.get(title)
+                            && let Some(acc_str) = year_map.get(year)
+                        {
+                            acc_by_conf_id.insert(id.clone(), acc_str.clone());
+                        }
+                    }
+                    acceptance_rates.set(acc_by_conf_id);
                 }
                 Err(e) => {
                     console::error_1(&format!("Error: {:?}", e).into());
@@ -416,744 +416,482 @@ pub fn ShowTable() -> impl IntoView {
         });
     });
 
+    let filtered_list = Memo::new(move |_| {
+        let input_lower = input_value.get().to_lowercase();
+        let liked_ids = like_list.get();
+        let mut run_list = Vec::new();
+        let mut tbd_list = Vec::new();
+        let mut fin_list = Vec::new();
+
+        check_list.with(|categories| {
+            rank_list.with(|ccf_ranks| {
+                core_rank_list.with(|core_ranks| {
+                    thcpl_rank_list.with(|thcpl_ranks| {
+                        all_conf_list.with(|conferences| {
+                            for item in conferences {
+                                if !conference_matches_filters(
+                                    item,
+                                    categories,
+                                    ccf_ranks,
+                                    core_ranks,
+                                    thcpl_ranks,
+                                    &input_lower,
+                                ) {
+                                    continue;
+                                }
+
+                                match item.status.as_str() {
+                                    STATUS_RUN => run_list.push(item.clone()),
+                                    STATUS_TBD => tbd_list.push(item.clone()),
+                                    STATUS_FIN => fin_list.push(item.clone()),
+                                    _ => {}
+                                }
+                            }
+                        });
+                    });
+                });
+            });
+        });
+
+        run_list.sort_by_key(|item| item.remain);
+        fin_list.sort_by_key(|item| std::cmp::Reverse(item.year));
+
+        let mut sorted_list = Vec::with_capacity(run_list.len() + tbd_list.len() + fin_list.len());
+        sorted_list.extend(run_list);
+        sorted_list.extend(tbd_list);
+        sorted_list.extend(fin_list);
+
+        let (mut liked_list, unliked_list): (Vec<_>, Vec<_>) = sorted_list
+            .into_iter()
+            .partition(|conf| liked_ids.contains(&conf.id));
+        liked_list.extend(unliked_list);
+
+        liked_list
+    });
+
+    let page_count = Memo::new(move |_| {
+        let total_count = filtered_list.with(Vec::len);
+        total_count.div_ceil(page_size.get()).max(1)
+    });
+
     let paginated_list = Memo::new(move |_| {
-        let mut filtered_list = all_conf_list.get();
-
-        // Filtering
-        let checkbox_val = check_list.get();
-        if !checkbox_val.is_empty() {
-            filtered_list.retain(|item| checkbox_val.contains(&item.sub.to_uppercase()));
-        }
-
-        let rank_val = rank_list.get();
-        if !rank_val.is_empty() {
-            filtered_list.retain(|item| rank_val.contains(&item.rank));
-        }
-        let core_rank_val = core_rank_list.get();
-        if !core_rank_val.is_empty() {
-            filtered_list.retain(|item| {
-                let core_rank = item.corerank.as_deref().unwrap_or("N");
-                core_rank_val.contains(core_rank)
-            });
-        }
-        let thcpl_rank_val = thcpl_rank_list.get();
-        if !thcpl_rank_val.is_empty() {
-            filtered_list.retain(|item| {
-                let thcpl_rank = item.thcplrank.as_deref().unwrap_or("N");
-                thcpl_rank_val.contains(thcpl_rank)
-            });
-        }
-
-        let input_val = input_value.get();
-        if !input_val.is_empty() {
-            let input_lower = input_val.to_lowercase();
-            filtered_list.retain(|item| {
-                item.id.to_lowercase().contains(&input_lower)
-                    || item.title.to_lowercase().contains(&input_lower)
-            });
-        }
-
-        // Sorting and Grouping
-        let mut run_list: Vec<_> = filtered_list
-            .iter()
-            .filter(|item| item.status == "RUN".to_string())
-            .cloned()
-            .collect();
-        let tbd_list: Vec<_> = filtered_list
-            .iter()
-            .filter(|item| item.status == "TBD".to_string())
-            .cloned()
-            .collect();
-        let mut fin_list: Vec<_> = filtered_list
-            .iter()
-            .filter(|item| item.status == "FIN".to_string())
-            .cloned()
-            .collect();
-
-        run_list.sort_by(|a, b| a.remain.cmp(&b.remain));
-        fin_list.sort_by(|a, b| b.year.cmp(&a.year));
-
-        let mut all_list = Vec::new();
-        all_list.extend(run_list);
-        all_list.extend(tbd_list);
-        all_list.extend(fin_list);
-
-        let (liked_list, unliked_list): (Vec<_>, Vec<_>) =
-            all_list.into_iter().partition(|conf| conf.is_like);
-
-        let mut final_list = liked_list;
-        final_list.extend(unliked_list);
-
-        // Pagination
-        let total_count = final_list.len();
         let page_val = page.get();
         let page_size_val = page_size.get();
-        let start = (page_val - 1) as usize * page_size_val as usize;
-        let end = (start + page_size_val as usize).min(total_count);
-        page_count.set((total_count + page_size_val - 1) / page_size_val);
 
-        let paginated_list: Vec<ConfItem> = if start < total_count {
-            final_list[start..end].to_vec()
-        } else {
-            Vec::new()
-        };
+        filtered_list.with(|final_list| {
+            let total_count = final_list.len();
+            let start = (page_val - 1) * page_size_val;
+            let end = (start + page_size_val).min(total_count);
 
-        paginated_list
+            if start < total_count {
+                final_list[start..end].to_vec()
+            } else {
+                Vec::new()
+            }
+        })
     });
 
-    let select_all_name = Memo::new(move |_| {
+    let clear_all_label = Memo::new(move |_| {
         if use_english.get() {
-            "Select All".to_string()
+            "Clear all".to_string()
         } else {
-            "全选".to_string()
+            "清空".to_string()
         }
     });
+    let compact_result_label = Memo::new(move |_| {
+        let count = filtered_list.with(Vec::len);
+
+        if use_english.get() {
+            format!("{count} conferences")
+        } else {
+            format!("{count} 个会议")
+        }
+    });
+    let search_placeholder = Memo::new(move |_| {
+        if use_english.get() {
+            "Search conferences...".to_string()
+        } else {
+            "搜索会议...".to_string()
+        }
+    });
+
+    let empty_state_label = Memo::new(move |_| {
+        if use_english.get() {
+            "No conferences match the current filters.".to_string()
+        } else {
+            "当前筛选条件下暂无会议。".to_string()
+        }
+    });
+    let timezone_message = Memo::new(move |_| {
+        let current_timezone = time_zone.get();
+        if use_english.get() {
+            format!("Deadlines are shown in {current_timezone} time.")
+        } else {
+            format!("当前截止时间基于 {current_timezone} 时区显示。")
+        }
+    });
+    let result_status_label =
+        Memo::new(move |_| format!("{} {}", compact_result_label.get(), timezone_message.get()));
+    let active_filter_summary = Memo::new(move |_| {
+        let count = check_list.with(HashSet::len)
+            + rank_list.with(HashSet::len)
+            + core_rank_list.with(HashSet::len)
+            + thcpl_rank_list.with(HashSet::len)
+            + usize::from(!input_value.with(String::is_empty));
+
+        if count == 0 {
+            if use_english.get() {
+                "No active filters".to_string()
+            } else {
+                "未启用筛选".to_string()
+            }
+        } else if use_english.get() {
+            format!("{count} active filters")
+        } else {
+            format!("已选 {count} 项")
+        }
+    });
+    let mobile_filter_button_label =
+        Memo::new(
+            move |_| match (use_english.get(), show_mobile_filters.get()) {
+                (true, true) => "Hide filters".to_string(),
+                (true, false) => "Show filters".to_string(),
+                (false, true) => "收起筛选".to_string(),
+                (false, false) => "展开筛选".to_string(),
+            },
+        );
 
     view! {
-        <section>
-            <div class="el-switch">
-                <span class=("is_active", move || !use_english.get())>"中文"</span>
-                <Switch checked=use_english />
-                <span class=("is_active", move || use_english.get())>"English"</span>
-            </div>
+    <section class="home-content">
+        <SubscriptionModal
+            show=show_subscription_modal
+            use_english=use_english
+            check_list=check_list
+            rank_list=rank_list
+            core_rank_list=core_rank_list
+            thcpl_rank_list=thcpl_rank_list
+        />
 
-            <div class="checkbox-item">
-                <label>
-                    <Checkbox
-                        size=CheckboxSize::Large
-                        checked=is_all_checked
-                        on:change=handle_check_all
-                        label=select_all_name
-                    />
-                </label>
-            </div>
-
-            <CheckboxGroup value=check_list>
-                <div class="category-checkbox-grid">
-                    <For
-                        each=move || {
-                            sub_list
-                                .get()
-                                .into_iter()
-                                .enumerate()
-                                .collect::<Vec<(usize, Category)>>()
-                        }
-                        key=|(_, item)| item.sub.clone()
-                        children=move |(_, item)| {
-                            let sub = item.sub.clone();
-                            let label = Memo::new(move |_| {
-                                if is_mobile.get() {
-                                    sub.clone()
-                                } else if use_english.get() {
-                                    item.name_en.clone()
-                                } else {
-                                    item.name.clone()
-                                }
-                            });
-
-                            view! {
-                                <div class="checkbox-item">
-                                    <label>
-                                        <Checkbox
-                                            size=CheckboxSize::Large
-                                            label=label
-                                            value=item.sub.clone()
-                                        />
-                                    </label>
-                                </div>
-                            }
-                        }
-                    />
-                </div>
-            </CheckboxGroup>
-
-            <div class="timezone-controls">
-                <div class="timezone-message-row">
-                    <div class="timezone-message">
-                        "Deadlines are shown in "{move || time_zone.get()}" time."
-                    </div>
-                    <div class="timezone-search">
-                        <Input
-                            value=input_value
-                            placeholder="search conference"
-                            size=InputSize::Small
-                            class="custom-search-input"
-                        >
-                            <InputPrefix slot>
-                                <Icon icon=icondata::FiSearch class="search-prefix-icon" />
-                            </InputPrefix>
-                        </Input>
-                    </div>
-                </div>
-
-                <div class="timezone-actions">
-                    <Button
-                        size=ButtonSize::Small
-                        appearance=ButtonAppearance::Subtle
-                        on_click=move |_| show_subscription_modal.set(true)
+        <div class="home-task-console">
+            <div class="home-task-bar home-control-bar">
+                <div class="home-control-search">
+                    <label class="sr-only" for="conference-search">
+                        {move || if use_english.get() { "Search conferences" } else { "搜索会议" }}
+                    </label>
+                    <Input
+                        id="conference-search"
+                        value=input_value
+                        placeholder=search_placeholder
+                        size=InputSize::Small
+                        class="custom-search-input home-search-input"
                     >
-                        <Icon icon=icondata::AiCalendarOutlined class="calendar-button-icon" />
-                        {move || if use_english.get() { "Subscribe" } else { "订阅" }}
-                    </Button>
-                    {move || {
-                        if is_mobile.get() {
-                            view! {
-                                <div class="mobile-filter-menu">
-                                    <Button
-                                        size=ButtonSize::Small
-                                        appearance=ButtonAppearance::Subtle
-                                        on_click=move |_| show_filters.update(|v| *v = !*v)
-                                    >
-                                        <Icon icon=icondata::FiFilter class="filter-button-icon" />
-                                        {move || if use_english.get() { "Filters" } else { "筛选" }}
-                                        <Icon
-                                            icon=if show_filters.get() {
-                                                icondata::BsChevronUp
-                                            } else {
-                                                icondata::BsChevronDown
-                                            }
-                                            class="filter-button-chevron"
-                                        />
-                                    </Button>
-                                    {move || {
-                                        if show_filters.get() {
-                                            view! {
-                                                <div class="mobile-filter-panel">
-                                                    <MultiSelectDropdown
-                                                        dropdown_id="ccf".to_string()
-                                                        title="CCF".to_string()
-                                                        options=ccf_filter_options()
-                                                        selected_values=rank_list
-                                                        use_english=use_english
-                                                        panel_width="180px".to_string()
-                                                        open_dropdown=open_dropdown
-                                                    />
-                                                    <MultiSelectDropdown
-                                                        dropdown_id="core".to_string()
-                                                        title="CORE".to_string()
-                                                        options=core_filter_options()
-                                                        selected_values=core_rank_list
-                                                        use_english=use_english
-                                                        panel_width="188px".to_string()
-                                                        open_dropdown=open_dropdown
-                                                    />
-                                                    <MultiSelectDropdown
-                                                        dropdown_id="thcpl".to_string()
-                                                        title="THCPL".to_string()
-                                                        options=thcpl_filter_options()
-                                                        selected_values=thcpl_rank_list
-                                                        use_english=use_english
-                                                        panel_width="196px".to_string()
-                                                        open_dropdown=open_dropdown
-                                                    />
-                                                </div>
-                                            }
-                                                .into_any()
-                                        } else {
-                                            view! {}.into_any()
-                                        }
-                                    }}
-                                </div>
-                            }
-                                .into_any()
-                        } else {
-                            view! {
-                                <div class="desktop-filter-actions">
-                                    <MultiSelectDropdown
-                                        dropdown_id="ccf".to_string()
-                                        title="CCF".to_string()
-                                        options=ccf_filter_options()
-                                        selected_values=rank_list
-                                        use_english=use_english
-                                        panel_width="180px".to_string()
-                                        open_dropdown=open_dropdown
-                                    />
-                                    <MultiSelectDropdown
-                                        dropdown_id="core".to_string()
-                                        title="CORE".to_string()
-                                        options=core_filter_options()
-                                        selected_values=core_rank_list
-                                        use_english=use_english
-                                        panel_width="188px".to_string()
-                                        open_dropdown=open_dropdown
-                                    />
-                                    <MultiSelectDropdown
-                                        dropdown_id="thcpl".to_string()
-                                        title="THCPL".to_string()
-                                        options=thcpl_filter_options()
-                                        selected_values=thcpl_rank_list
-                                        use_english=use_english
-                                        panel_width="196px".to_string()
-                                        open_dropdown=open_dropdown
-                                    />
-                                </div>
-                            }
-                                .into_any()
-                        }
-                    }}
+                        <InputPrefix slot>
+                            <Icon icon=icondata::FiSearch class="search-prefix-icon" />
+                        </InputPrefix>
+                    </Input>
                 </div>
+
+                <div class="home-control-filters home-control-filters-desktop">
+                    <MultiSelectDropdown
+                        dropdown_id="ccf".to_string()
+                        title="CCF".to_string()
+                        options=ccf_filter_options()
+                        selected_values=rank_list
+                        use_english=use_english
+                        panel_width="184px".to_string()
+                        open_dropdown=open_dropdown
+                    />
+                    <MultiSelectDropdown
+                        dropdown_id="core".to_string()
+                        title="CORE".to_string()
+                        options=core_filter_options()
+                        selected_values=core_rank_list
+                        use_english=use_english
+                        panel_width="192px".to_string()
+                        open_dropdown=open_dropdown
+                    />
+                    <MultiSelectDropdown
+                        dropdown_id="thcpl".to_string()
+                        title="THCPL".to_string()
+                        options=thcpl_filter_options()
+                        selected_values=thcpl_rank_list
+                        use_english=use_english
+                        panel_width="196px".to_string()
+                        open_dropdown=open_dropdown
+                    />
+                </div>
+
+                <Button
+                    size=ButtonSize::Small
+                    appearance=ButtonAppearance::Primary
+                    class="home-subscribe-button"
+                    on_click=move |_| show_subscription_modal.set(true)
+                >
+                    <Icon icon=icondata::AiCalendarOutlined class="calendar-button-icon" />
+                    {move || if use_english.get() { "Subscribe" } else { "订阅" }}
+                </Button>
             </div>
 
-            <SubscriptionModal
-                show=show_subscription_modal
-                use_english=use_english
-                check_list=check_list
-                rank_list=rank_list
-                core_rank_list=core_rank_list
-                thcpl_rank_list=thcpl_rank_list
-            />
-
-            <div class="zonedivider" />
-            <div class="table-container">
-                <Table>
-                    <TableBody>
-                        {move || {
-                            if paginated_list.get().is_empty() {
-                                view! {
-                                    <TableRow>
-                                        <TableCell>
-                                            <div class="empty-state-text">
-                                                "No data available."
-                                            </div>
-                                        </TableCell>
-                                    </TableRow>
-                                }
-                                    .into_any()
-                            } else {
-                                view! {
-                                    <For
-                                        each=move || paginated_list.get()
-                                        key=|conf| {
-                                            format!("{}{}", conf.title.clone(), conf.year.clone())
-                                        }
-                                        children=move |conf| {
-                                            let is_finished = conf.status == "FIN";
-                                            let is_tbd = conf.status == "TBD";
-                                            let ccf_rank_value = conf.rank.clone();
-                                            let ccf_rank_label = conf.displayrank.clone();
-                                            let core_rank_value = conf
-                                                .corerank
-                                                .clone()
-                                                .unwrap_or_else(|| "N".to_string());
-                                            let core_tag_label = if core_rank_value == "N" {
-                                                "Non-CORE".to_string()
-                                            } else {
-                                                format!("CORE {}", core_rank_value.clone())
-                                            };
-                                            let thcpl_rank_value = conf
-                                                .thcplrank
-                                                .clone()
-                                                .unwrap_or_else(|| "N".to_string());
-                                            let thcpl_tag_label = if thcpl_rank_value == "N" {
-                                                "Non-THCPL".to_string()
-                                            } else {
-                                                format!("THCPL {}", thcpl_rank_value.clone())
-                                            };
-                                            let show_ddl_str = if is_tbd {
-                                                "TBD".to_string()
-                                            } else {
-                                                format!(
-                                                    "{} ({})",
-                                                    conf.local_ddl.clone().unwrap(),
-                                                    conf.origin_ddl.clone().unwrap(),
-                                                )
-                                            };
-                                            view! {
-                                                <TableRow>
-                                                    <TableCell>
-                                                        <TableCellLayout>
-                                                            <div class=("conf-fin", is_finished)>
-                                                                <div class="conf-title">
-                                                                    <a
-                                                                        href=format!(
-                                                                            "https://dblp.org/db/conf/{}",
-                                                                            conf.dblp,
-                                                                        )
-                                                                        class="table-link interactive-link"
-                                                                        target="_blank"
-                                                                    >
-                                                                        {conf.title.clone()}
-                                                                    </a>
-                                                                    " "
-                                                                    {conf.year.clone()}
-                                                                    {move || {
-                                                                        let conf_title = conf.title.clone();
-                                                                        let conf_year = conf.year.clone();
-                                                                        let current_like = conf.is_like;
-                                                                        if !current_like {
-                                                                            view! {
-                                                                             <button
-                                                                                     type="button"
-                                                                                     class="favorite-toggle"
-                                                                                     aria-label="Add conference to favorites"
-                                                                                     on:click=move |_| {
-                                                                                         all_conf_list
-                                                                                             .update(|conferences| {
-                                                                                                 for item in conferences.iter_mut() {
-                                                                                                     if item.title == conf_title && item.year == conf_year {
-                                                                                                         item.is_like = true;
-                                                                                                         like_list
-                                                                                                             .update(|mut list| {
-                                                                                                                 list.insert(item.id.clone());
-                                                                                                             });
-                                                                                                         break;
-                                                                                                     }
-                                                                                                 }
-                                                                                             });
-                                                                                     }
-                                                                                 >
-                                                                                     <Icon icon=icondata::BsStar class="favorite-icon favorite-icon-inactive" />
-                                                                                 </button>
-                                                                            }
-                                                                                .into_any()
-                                                                        } else {
-                                                                            view! {
-                                                                                <button
-                                                                                    type="button"
-                                                                                    class="favorite-toggle"
-                                                                                    aria-label="Remove conference from favorites"
-                                                                                    on:click=move |_| {
-                                                                                        all_conf_list
-                                                                                            .update(|conferences| {
-                                                                                                for item in conferences.iter_mut() {
-                                                                                                    if item.title == conf_title && item.year == conf_year {
-                                                                                                        item.is_like = false;
-                                                                                                        like_list
-                                                                                                            .update(|mut list| {
-                                                                                                                list.remove(&item.id.clone());
-                                                                                                            });
-                                                                                                        break;
-                                                                                                    }
-                                                                                                }
-                                                                                            });
-                                                                                    }
-                                                                                >
-                                                                                    <Icon icon=icondata::BsStarFill class="favorite-icon favorite-icon-active" />
-                                                                                </button>
-                                                                            }
-                                                                                .into_any()
-                                                                        }
-                                                                    }}
-                                                                </div>
-
-                                                                <div class="conference-meta-text">
-                                                                    {conf.date.clone()} " " {conf.place.clone()}
-                                                                </div>
-
-                                                                <div class="conference-meta-text">
-                                                                    {conf.description.clone()}
-                                                                </div>
-
-                                                                <div class="tag-container">
-                                                                    <span class=move || {
-                                                                        if rank_list.get().contains(&ccf_rank_value) {
-                                                                            "tag-highlight"
-                                                                        } else {
-                                                                            ""
-                                                                        }
-                                                                    }>
-                                                                        <Tag class="plain-tag">
-                                                                            {ccf_rank_label.clone()}
-                                                                        </Tag>
-                                                                    </span>
-                                                                    " "
-                                                                    <span class=move || {
-                                                                        if core_rank_list.get().contains(&core_rank_value) {
-                                                                            "tag-highlight"
-                                                                        } else {
-                                                                            ""
-                                                                        }
-                                                                    }>
-                                                                        <Tag class="plain-tag">
-                                                                            {core_tag_label.clone()}
-                                                                        </Tag>
-                                                                    </span>
-                                                                    " "
-                                                                    <span class=move || {
-                                                                        if thcpl_rank_list.get().contains(&thcpl_rank_value) {
-                                                                            "tag-highlight"
-                                                                        } else {
-                                                                            ""
-                                                                        }
-                                                                    }>
-                                                                        <Tag class="plain-tag">
-                                                                            {thcpl_tag_label.clone()}
-                                                                        </Tag>
-                                                                    </span>
-                                                                    " "
-                                                                    {move || {
-                                                                        conf.comment
-                                                                            .as_ref()
-                                                                            .map(|comment| {
-                                                                                view! {
-                                                                                    <span class="conference-note">
-                                                                                        <b>"NOTE: "</b>
-                                                                                        {comment.clone()}
-                                                                                    </span>
-                                                                                }
-                                                                            })
-                                                                    }}
-                                                                </div>
-
-                                                                <div class="conference-supporting-text">
-                                                                    {move || {
-                                                                        if let Some(ref acc) = conf.acc_str {
-                                                                            format!("Acc. Rate: {} ", acc)
-                                                                        } else {
-                                                                            "".to_string()
-                                                                        }
-                                                                    }}
-                                                                    <span class="conference-category-chip">
-                                                                        {move || {
-                                                                            if use_english.get() {
-                                                                                conf.subname_en.clone()
-                                                                            } else {
-                                                                                conf.subname.clone()
-                                                                            }
-                                                                        }}
-                                                                    </span>
-                                                                </div>
-                                                            </div>
-                                                        </TableCellLayout>
-                                                    </TableCell>
-
-                                                    <TableCell>
-                                                        <TableCellLayout>
-
-                                                            <div class=(
-                                                                "conf-fin",
-                                                                is_finished,
-                                                            )>
-
-                                                                {move || {
-                                                                    if is_tbd {
-                                                                        view! {
-                                                                            <div class="countdown-container">
-                                                                                <div class="countdown-display">
-                                                                                    <span class="countdown-value">"TBD"</span>
-                                                                                </div>
-                                                                            </div>
-                                                                        }
-                                                                            .into_any()
-                                                                    } else {
-                                                                        view! {
-                                                                            <div class="countdown-container">
-                                                                                <div class="countdown-display">
-                                                                                    <span class="countdown-value">
-                                                                                        <CountDown remain=conf.remain.clone() />
-                                                                                        // <Icon icon=icondata::VsCalendar style="margin-left: 5px"/>
-                                                                                        <CalendarPopover
-                                                                                            google_calendar_url=conf.google_calendar_url.clone()
-                                                                                            icloud_calendar_url=conf.icloud_calendar_url.clone()
-                                                                                            is_mobile
-                                                                                        />
-                                                                                    </span>
-                                                                                </div>
-                                                                            </div>
-                                                                        }
-                                                                            .into_any()
-                                                                    }
-                                                                }}
-                                                                <div class="conference-meta-text">
-                                                                    {move || {
-                                                                        if is_tbd {
-                                                                            view! {
-                                                                                <span>
-                                                                                    "Deadline: "
-                                                                                    <a
-                                                                                        href="https://github.com/ccfddl/ccf-deadlines/pulls"
-                                                                                        class="inline-muted-link interactive-link"
-                                                                                        target="_blank"
-                                                                                    >
-                                                                                        "pull request to update"
-                                                                                    </a>
-                                                                                </span>
-                                                                            }
-                                                                                .into_any()
-                                                                        } else {
-                                                                            view! {
-                                                                                <span>{format!("Deadline: {}", show_ddl_str)}</span>
-                                                                            }
-                                                                                .into_any()
-                                                                        }
-                                                                    }}
-                                                                </div>
-                                                                <div class="conference-meta-text">
-                                                                    "website: "
-                                                                    <a
-                                                                        href=conf.link.clone()
-                                                                        class="inline-muted-link interactive-link inline-break-link"
-                                                                        target="_blank"
-                                                                    >
-                                                                        {conf.link.clone()}
-                                                                    </a>
-                                                                </div>
-                                                                {move || {
-                                                                    if is_finished || is_tbd {
-                                                                        view! {}.into_any()
-                                                                    } else {
-                                                                        view! { <TimeLine time_points=conf.ddls.clone() /> }
-                                                                            .into_any()
-                                                                    }
-                                                                }}
-                                                            </div>
-                                                        </TableCellLayout>
-                                                    </TableCell>
-                                                </TableRow>
-                                            }
-                                        }
-                                    />
-                                }
-                                    .into_any()
-                            }
-                        }}
-                    </TableBody>
-                </Table>
+            <div class="mobile-filter-bar">
+                <button
+                    type="button"
+                    class="home-chip-action home-mobile-filter-toggle"
+                    aria-expanded=move || show_mobile_filters.get().to_string()
+                    aria-controls="mobile-filter-panel"
+                    on:click=move |_| {
+                        show_mobile_filters.set(!show_mobile_filters.get_untracked());
+                        open_dropdown.set(None);
+                    }
+                >
+                    {move || mobile_filter_button_label.get()}
+                </button>
+                <span class="active-filter-count">{move || active_filter_summary.get()}</span>
             </div>
 
-            <div class="footer">
-                <div class="footer-text">
-                    <span>
-                        "Maintained by @ccfddl. If you find it useful, star or follow "
-                        <a class="footer-link interactive-link" href="https://github.com/ccfddl" target="_blank">
-                            "@ccfddl"
-                        </a> " on Github."
-                    </span>
-                </div>
-                <div class="footer-pagination">
-                    <Pagination page page_count />
-                </div>
-            </div>
+            <Show when=move || show_mobile_filters.get()>
+                <div id="mobile-filter-panel" class="mobile-filter-panel">
+                    <div class="mobile-filter-menu">
+                        <MultiSelectDropdown
+                            dropdown_id="ccf-mobile".to_string()
+                            title="CCF".to_string()
+                            options=ccf_filter_options()
+                            selected_values=rank_list
+                            use_english=use_english
+                            panel_width="100%".to_string()
+                            open_dropdown=open_dropdown
+                        />
+                        <MultiSelectDropdown
+                            dropdown_id="core-mobile".to_string()
+                            title="CORE".to_string()
+                            options=core_filter_options()
+                            selected_values=core_rank_list
+                            use_english=use_english
+                            panel_width="100%".to_string()
+                            open_dropdown=open_dropdown
+                        />
+                        <MultiSelectDropdown
+                            dropdown_id="thcpl-mobile".to_string()
+                            title="THCPL".to_string()
+                            options=thcpl_filter_options()
+                            selected_values=thcpl_rank_list
+                            use_english=use_english
+                            panel_width="100%".to_string()
+                            open_dropdown=open_dropdown
+                        />
+                    </div>
 
-            <style>
-                {r#"
-                .tag-container .tag-highlight .plain-tag {
-                  background: var(--color-primary-soft) !important;
-                  color: var(--color-text-accent) !important;
-                  border: 1px solid var(--color-border-strong) !important;
-                  font-weight: 600;
+                    <CategoryFilterChips
+                        sub_list=sub_list
+                        check_list=check_list
+                        use_english=use_english
+                        clear_all_label=clear_all_label
+                        input_value=input_value
+                        rank_list=rank_list
+                        core_rank_list=core_rank_list
+                        thcpl_rank_list=thcpl_rank_list
+                        open_dropdown=open_dropdown
+                    />
+                </div>
+            </Show>
+
+            <div class="home-chip-row home-chip-row-desktop">
+                <CategoryFilterChips
+                    sub_list=sub_list
+                    check_list=check_list
+                    use_english=use_english
+                    clear_all_label=clear_all_label
+                    input_value=input_value
+                    rank_list=rank_list
+                    core_rank_list=core_rank_list
+                    thcpl_rank_list=thcpl_rank_list
+                    open_dropdown=open_dropdown
+                />
+            </div>
+        </div>
+
+        <div class="home-result-context">
+            <span
+                class="home-context-chip"
+                role="status"
+                aria-live="polite"
+                aria-atomic="true"
+            >
+                {move || result_status_label.get()}
+            </span>
+        </div>
+
+        {move || {
+            if is_loading.get() {
+                view! { <LoadingSkeleton /> }.into_any()
+            } else if let Some(message) = load_error.get() {
+                view! {
+                    <div class="empty-state-panel" role="alert">
+                        <p class="empty-state-text">{message}</p>
+                    </div>
                 }
-                "#}
-            </style>
-        </section>
-    }
-}
-
-static UTC_MAP: OnceLock<HashMap<String, String>> = OnceLock::new();
-
-fn normalize_timezone(tz: &str) -> String {
-    match tz {
-        "AoE" => "UTC-12".to_string(),
-        "UTC" => "UTC+0".to_string(),
-        _ => tz.to_string(),
-    }
-}
-
-fn parse_deadline_to_rfc3339(deadline: &str, tz_offset: &str) -> String {
-    if deadline.contains(' ') {
-        format!(
-            "{}T{}{}",
-            deadline.split(' ').nth(0).unwrap_or(""),
-            deadline.split(' ').nth(1).unwrap_or("00:00:00"),
-            tz_offset
-        )
-    } else {
-        format!("{}T23:59:59{}", deadline, tz_offset)
-    }
-}
-
-const RANK_OPTIONS: &[(&str, &str)] = &[("A", "CCF A"), ("B", "CCF B"), ("C", "CCF C"), ("N", "Non-CCF")];
-
-const MOBILE_KEYWORDS: &[&str] = &[
-    "phone", "pad", "pod", "iphone", "ipod", "ios", "ipad", "android", "mobile",
-    "blackberry", "iemobile", "mqqbrowser", "juc", "fennec", "wosbrowser",
-    "browserng", "webos", "symbian", "windows phone",
-];
-
-fn get_utc_map() -> &'static HashMap<String, String> {
-    UTC_MAP.get_or_init(|| {
-        let mut utc_map = HashMap::new();
-        for i in -12..=12 {
-            let offset_str = if i >= 0 {
-                format!("+{:02}:00", i)
+                .into_any()
+            } else if paginated_list.get().is_empty() {
+                view! {
+                    <div class="empty-state-panel">
+                        <p class="empty-state-text">{move || empty_state_label.get()}</p>
+                    </div>
+                }
+                .into_any()
             } else {
-                format!("-{:02}:00", -i)
-            };
-            let key = if i >= 0 {
-                format!("UTC+{}", i)
-            } else {
-                format!("UTC{}", i)
-            };
-            utc_map.insert(key, offset_str);
+                view! {
+                    <div class=DEFAULT_CONFERENCE_CARD_LIST_CLASS>
+                        <For
+                            each=move || paginated_list.get()
+                            key=|conf| conf.id.clone()
+                            children=move |conf| {
+                                let conf_id = conf.id.clone();
+                                let acceptance_rate = Memo::new(move |_| {
+                                    acceptance_rates.with(|rates| rates.get(&conf_id).cloned())
+                                });
+
+                                view! {
+                                    <ConferenceCard
+                                        conf
+                                        use_english=use_english
+                                        rank_list=rank_list
+                                        core_rank_list=core_rank_list
+                                        thcpl_rank_list=thcpl_rank_list
+                                        like_list=like_list
+                                        is_mobile=is_mobile
+                                        acceptance_rate=acceptance_rate
+                                    />
+                                }
+                            }
+                        />
+                    </div>
+                }
+                    .into_any()
+            }
+        }}
+
+        <div class="footer">
+            <div class="footer-text">
+                <span>
+                    "Maintained by @ccfddl. If you find it useful, star or follow "
+                    <a
+                        class="footer-link interactive-link"
+                        href="https://github.com/ccfddl"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >
+                        "@ccfddl"
+                    </a> " on Github."
+                </span>
+            </div>
+            <div class="footer-pagination">
+                <Pagination page page_count />
+            </div>
+        </div>
+    </section>
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{ConfItem, DEFAULT_CONFERENCE_CARD_LIST_CLASS, conference_matches_filters};
+    use std::collections::HashSet;
+
+    fn values(items: &[&str]) -> HashSet<String> {
+        items.iter().map(|item| item.to_string()).collect()
+    }
+
+    fn test_conference() -> ConfItem {
+        ConfItem {
+            title: "TestConf".to_string(),
+            description: "Test conference".to_string(),
+            sub: "AI".to_string(),
+            rank: "A".to_string(),
+            corerank: Some("N".to_string()),
+            thcplrank: Some("T1".to_string()),
+            displayrank: "CCF A".to_string(),
+            dblp: "testconf".to_string(),
+            year: 2026,
+            id: "testconf-2026".to_string(),
+            link: "https://example.com".to_string(),
+            abstract_deadline: None,
+            deadline: "2026-05-04".to_string(),
+            comment: None,
+            timezone: "UTC".to_string(),
+            date: "May 2026".to_string(),
+            place: "Online".to_string(),
+            status: "RUN".to_string(),
+            is_like: false,
+            remain: 0,
+            local_ddl: None,
+            origin_ddl: None,
+            subname: "Artificial Intelligence".to_string(),
+            subname_en: "Artificial Intelligence".to_string(),
+            google_calendar_url: None,
+            icloud_calendar_url: None,
+            ddls: Vec::new(),
         }
-        utc_map.insert("AoE".to_string(), "-12:00".to_string());
-        utc_map.insert("UTC".to_string(), "+00:00".to_string());
-        utc_map
-    })
-}
-
-#[allow(dead_code)]
-fn load_utc_map() -> HashMap<String, String> {
-    get_utc_map().clone()
-}
-
-#[cfg(target_arch = "wasm32")]
-fn get_browser_time_and_timezone() -> (DateTime<FixedOffset>, FixedOffset) {
-    let utc_now = chrono::Utc::now();
-    let js_date = web_sys::js_sys::Date::new_0();
-    let offset_minutes = -(js_date.get_timezone_offset() as i32);
-
-    let timezone = FixedOffset::east_opt(offset_minutes * 60)
-        .unwrap_or_else(|| FixedOffset::east_opt(0).unwrap());
-
-    let current_time = utc_now.with_timezone(&timezone);
-
-    (current_time, timezone)
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn get_browser_time_and_timezone() -> (DateTime<FixedOffset>, FixedOffset) {
-    use chrono::Local;
-    let local_time = Local::now();
-    let timezone = *local_time.offset();
-    (local_time.with_timezone(&timezone), timezone)
-}
-
-#[wasm_bindgen]
-extern "C" {
-    #[wasm_bindgen(js_namespace = navigator, getter, js_name = userAgent)]
-    fn user_agent() -> String;
-}
-
-fn is_client_device() -> bool {
-    web_sys::window().is_some()
-}
-
-fn is_mobile_device() -> bool {
-    if !is_client_device() {
-        return false;
     }
 
-    let window = web_sys::window().expect("no global window exists");
-    let navigator = window.navigator();
-    let user_agent = navigator
-        .user_agent()
-        .expect("user agent not available")
-        .to_lowercase();
+    #[test]
+    fn defaults_to_comfortable_view_only() {
+        assert_eq!(
+            DEFAULT_CONFERENCE_CARD_LIST_CLASS,
+            "conference-card-list conference-card-list-comfortable"
+        );
+    }
 
-    MOBILE_KEYWORDS
-        .iter()
-        .any(|&keyword| user_agent.contains(keyword))
-}
+    #[test]
+    fn requires_each_active_filter_to_match_conference() {
+        let conference = test_conference();
+        let empty = HashSet::new();
 
-fn get_from_local_storage(key: &str) -> Option<String> {
-    let window = window().unwrap();
-    let local_storage = window.local_storage().ok().flatten().unwrap();
-    local_storage.get_item(key).unwrap()
-}
-
-fn set_in_local_storage(key: &str, value: &str) {
-    let window = window().unwrap();
-    let local_storage = window.local_storage().ok().flatten().unwrap();
-    local_storage.set_item(key, value).unwrap();
+        assert!(conference_matches_filters(
+            &conference,
+            &values(&["AI"]),
+            &values(&["A"]),
+            &values(&["N"]),
+            &values(&["T1"]),
+            "testconf"
+        ));
+        assert!(!conference_matches_filters(
+            &conference,
+            &values(&["DB"]),
+            &empty,
+            &empty,
+            &empty,
+            ""
+        ));
+        assert!(!conference_matches_filters(
+            &conference,
+            &empty,
+            &values(&["B"]),
+            &empty,
+            &empty,
+            ""
+        ));
+        assert!(!conference_matches_filters(
+            &conference,
+            &empty,
+            &empty,
+            &values(&["A*"]),
+            &empty,
+            ""
+        ));
+        assert!(!conference_matches_filters(
+            &conference,
+            &empty,
+            &empty,
+            &empty,
+            &values(&["T2"]),
+            ""
+        ));
+        assert!(!conference_matches_filters(
+            &conference,
+            &empty,
+            &empty,
+            &empty,
+            &empty,
+            "missing"
+        ));
+    }
 }

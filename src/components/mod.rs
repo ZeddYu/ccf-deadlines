@@ -1,10 +1,16 @@
 pub mod calendar_popover;
+pub mod category_filter_chips;
 pub mod checkbox_button;
 pub mod conf;
+pub mod conference_card;
 pub mod countdown;
+pub mod deadline_utils;
+pub mod dom;
 pub mod gitbutton;
 pub mod header;
+pub mod loading;
 pub mod showtable;
+pub mod storage;
 pub mod subscription_modal;
 pub mod theme;
 pub mod timeline;

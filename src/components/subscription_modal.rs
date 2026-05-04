@@ -1,9 +1,10 @@
+use crate::components::checkbox_button::{format_rank_label, format_rank_summary_value};
 use leptos::prelude::*;
 use std::collections::HashSet;
 use thaw::*;
 use wasm_bindgen::prelude::*;
-use web_sys::js_sys;
-use web_sys::window;
+use wasm_bindgen_futures::{JsFuture, spawn_local};
+use web_sys::{console, js_sys, window};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct SubscriptionLink {
@@ -15,24 +16,6 @@ pub type IcsSubscription = SubscriptionLink;
 
 fn sanitize_filter_value(value: &str) -> String {
     value.replace('*', "star")
-}
-
-fn format_rank_label(system: &str, rank: &str) -> String {
-    match (system, rank) {
-        ("CCF", "N") => "Non-CCF".to_string(),
-        ("CORE", "N") => "Non-CORE".to_string(),
-        ("THCPL", "N") => "Non-THCPL".to_string(),
-        _ => format!("{} {}", system, rank),
-    }
-}
-
-fn format_rank_summary_value(system: &str, rank: &str) -> String {
-    match (system, rank) {
-        ("CCF", "N") => "Non-CCF".to_string(),
-        ("CORE", "N") => "Non-CORE".to_string(),
-        ("THCPL", "N") => "Non-THCPL".to_string(),
-        _ => rank.to_string(),
-    }
 }
 
 fn sorted_values(values: &HashSet<String>) -> Vec<String> {
@@ -190,14 +173,22 @@ pub fn generate_rss_urls(
 fn copy_text_to_clipboard(text: &str) {
     if let Some(w) = window() {
         let nav: JsValue = w.navigator().into();
-        if let Ok(clipboard) = js_sys::Reflect::get(&nav, &JsValue::from_str("clipboard")) {
-            if !clipboard.is_undefined() && !clipboard.is_null() {
-                if let Ok(write_fn) =
-                    js_sys::Reflect::get(&clipboard, &JsValue::from_str("writeText"))
-                {
-                    let func: js_sys::Function = write_fn.unchecked_into();
-                    let _ = func.call1(&clipboard, &JsValue::from_str(text));
+        if let Ok(clipboard) = js_sys::Reflect::get(&nav, &JsValue::from_str("clipboard"))
+            && !clipboard.is_undefined()
+            && !clipboard.is_null()
+            && let Ok(write_fn) = js_sys::Reflect::get(&clipboard, &JsValue::from_str("writeText"))
+        {
+            let func: js_sys::Function = write_fn.unchecked_into();
+            match func.call1(&clipboard, &JsValue::from_str(text)) {
+                Ok(value) => {
+                    let promise = js_sys::Promise::from(value);
+                    spawn_local(async move {
+                        if let Err(error) = JsFuture::from(promise).await {
+                            console::warn_1(&error);
+                        }
+                    });
                 }
+                Err(error) => console::warn_1(&error),
             }
         }
     }
@@ -317,6 +308,22 @@ fn render_link_limit_message(link_count: usize, use_english: bool) -> String {
     }
 }
 
+fn with_filter_values<T>(
+    check_list: RwSignal<HashSet<String>>,
+    rank_list: RwSignal<HashSet<String>>,
+    core_rank_list: RwSignal<HashSet<String>>,
+    thcpl_rank_list: RwSignal<HashSet<String>>,
+    build: impl FnOnce(&HashSet<String>, &HashSet<String>, &HashSet<String>, &HashSet<String>) -> T,
+) -> T {
+    check_list.with(|subs| {
+        rank_list.with(|ranks| {
+            core_rank_list.with(|core_ranks| {
+                thcpl_rank_list.with(|thcpl_ranks| build(subs, ranks, core_ranks, thcpl_ranks))
+            })
+        })
+    })
+}
+
 #[component]
 pub fn SubscriptionModal(
     show: RwSignal<bool>,
@@ -328,20 +335,28 @@ pub fn SubscriptionModal(
 ) -> impl IntoView {
     let subscriptions = Memo::new(move |_| {
         let lang = if use_english.get() { "en" } else { "zh" };
-        let subs = check_list.get();
-        let ranks = rank_list.get();
-        let core_ranks = core_rank_list.get();
-        let thcpl_ranks = thcpl_rank_list.get();
-        generate_ics_urls(lang, &subs, &ranks, &core_ranks, &thcpl_ranks)
+        with_filter_values(
+            check_list,
+            rank_list,
+            core_rank_list,
+            thcpl_rank_list,
+            |subs, ranks, core_ranks, thcpl_ranks| {
+                generate_ics_urls(lang, subs, ranks, core_ranks, thcpl_ranks)
+            },
+        )
     });
 
     let rss_subscriptions = Memo::new(move |_| {
         let lang = if use_english.get() { "en" } else { "zh" };
-        let subs = check_list.get();
-        let ranks = rank_list.get();
-        let core_ranks = core_rank_list.get();
-        let thcpl_ranks = thcpl_rank_list.get();
-        generate_rss_urls(lang, &subs, &ranks, &core_ranks, &thcpl_ranks)
+        with_filter_values(
+            check_list,
+            rank_list,
+            core_rank_list,
+            thcpl_rank_list,
+            |subs, ranks, core_ranks, thcpl_ranks| {
+                generate_rss_urls(lang, subs, ranks, core_ranks, thcpl_ranks)
+            },
+        )
     });
 
     let has_multiple_subscriptions = Memo::new(move |_| subscriptions.get().len() > 1);
@@ -383,17 +398,21 @@ pub fn SubscriptionModal(
                             </div>
                             <div class="subscription-summary-value">
                                 {move || {
-                                    let subs = check_list.get();
-                                    let ranks = rank_list.get();
-                                    let core_ranks = core_rank_list.get();
-                                    let thcpl_ranks = thcpl_rank_list.get();
                                     let en = use_english.get();
-                                    render_filter_summary(
-                                        &subs,
-                                        &ranks,
-                                        &core_ranks,
-                                        &thcpl_ranks,
-                                        en,
+                                    with_filter_values(
+                                        check_list,
+                                        rank_list,
+                                        core_rank_list,
+                                        thcpl_rank_list,
+                                        |subs, ranks, core_ranks, thcpl_ranks| {
+                                            render_filter_summary(
+                                                subs,
+                                                ranks,
+                                                core_ranks,
+                                                thcpl_ranks,
+                                                en,
+                                            )
+                                        },
                                     )
                                 }}
                             </div>
@@ -449,15 +468,17 @@ pub fn SubscriptionModal(
                                                     let url_for_copy = url.clone();
                                                     let desc = sub.description.clone();
                                                     let label = format!("{}. {}", idx + 1, desc);
+                                                    let title_id = format!("calendar-subscription-title-{idx}");
                                                     view! {
                                                         <div class="subscription-link-card">
-                                                            <div class="subscription-link-title">{label}</div>
+                                                            <div id=title_id.clone() class="subscription-link-title">{label}</div>
                                                             <div class="subscription-link-row">
                                                                 <input
                                                                     type="text"
                                                                     readonly
                                                                     value=url
                                                                     class="subscription-link-input"
+                                                                    aria-labelledby=title_id
                                                                 />
                                                                 <Button
                                                                     size=ButtonSize::Small
@@ -530,15 +551,17 @@ pub fn SubscriptionModal(
                                                     let url_for_copy = url.clone();
                                                     let desc = sub.description.clone();
                                                     let label = format!("{}. {}", idx + 1, desc);
+                                                    let title_id = format!("rss-subscription-title-{idx}");
                                                     view! {
                                                         <div class="subscription-link-card">
-                                                            <div class="subscription-link-title">{label}</div>
+                                                            <div id=title_id.clone() class="subscription-link-title">{label}</div>
                                                             <div class="subscription-link-row">
                                                                 <input
                                                                     type="text"
                                                                     readonly
                                                                     value=url
                                                                     class="subscription-link-input"
+                                                                    aria-labelledby=title_id
                                                                 />
                                                                 <Button
                                                                     size=ButtonSize::Small
@@ -629,5 +652,79 @@ pub fn SubscriptionModal(
                 </DialogBody>
             </DialogSurface>
         </Dialog>
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{SubscriptionLink, generate_ics_urls, generate_rss_urls};
+    use std::collections::HashSet;
+
+    fn values(items: &[&str]) -> HashSet<String> {
+        items.iter().map(|item| item.to_string()).collect()
+    }
+
+    #[test]
+    fn generates_combined_subscription_urls_for_active_filters() {
+        let urls = generate_ics_urls(
+            "en",
+            &values(&["AI"]),
+            &values(&["A"]),
+            &values(&["A*"]),
+            &values(&["T1"]),
+        );
+
+        assert_eq!(
+            urls,
+            vec![SubscriptionLink {
+                url: "webcal://ccfddl.com/conference/deadlines_en_ccf_A_core_Astar_thcpl_T1_AI.ics"
+                    .to_string(),
+                description: "CCF A | CORE A* | THCPL T1 | AI".to_string(),
+            }]
+        );
+    }
+
+    #[test]
+    fn generates_all_conference_rss_url_without_filters() {
+        let empty = HashSet::new();
+
+        assert_eq!(
+            generate_rss_urls("zh", &empty, &empty, &empty, &empty),
+            vec![SubscriptionLink {
+                url: "https://ccfddl.com/conference/deadlines_zh.xml".to_string(),
+                description: "所有会议".to_string(),
+            }]
+        );
+    }
+
+    #[test]
+    fn generates_partial_filter_urls_with_stable_order() {
+        assert_eq!(
+            generate_rss_urls(
+                "en",
+                &values(&["DB", "AI"]),
+                &HashSet::new(),
+                &values(&["B", "A*"]),
+                &HashSet::new(),
+            ),
+            vec![
+                SubscriptionLink {
+                    url: "https://ccfddl.com/conference/deadlines_en_core_Astar_AI.xml".to_string(),
+                    description: "CORE A* | AI".to_string(),
+                },
+                SubscriptionLink {
+                    url: "https://ccfddl.com/conference/deadlines_en_core_Astar_DB.xml".to_string(),
+                    description: "CORE A* | DB".to_string(),
+                },
+                SubscriptionLink {
+                    url: "https://ccfddl.com/conference/deadlines_en_core_B_AI.xml".to_string(),
+                    description: "CORE B | AI".to_string(),
+                },
+                SubscriptionLink {
+                    url: "https://ccfddl.com/conference/deadlines_en_core_B_DB.xml".to_string(),
+                    description: "CORE B | DB".to_string(),
+                },
+            ]
+        );
     }
 }

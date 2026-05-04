@@ -1,3 +1,4 @@
+use chrono::{DateTime, FixedOffset};
 use chrono_tz::Tz;
 use std::str::FromStr;
 
@@ -12,6 +13,26 @@ pub fn get_timezone_name() -> Option<String> {
 #[cfg(not(target_arch = "wasm32"))]
 pub fn get_timezone_name() -> Option<String> {
     std::env::var("TZ").ok()
+}
+
+#[cfg(target_arch = "wasm32")]
+pub fn get_browser_time_and_timezone() -> (DateTime<FixedOffset>, FixedOffset) {
+    let utc_now = chrono::Utc::now();
+    let js_date = web_sys::js_sys::Date::new_0();
+    let offset_minutes = -(js_date.get_timezone_offset() as i32);
+
+    let timezone = FixedOffset::east_opt(offset_minutes * 60)
+        .unwrap_or_else(|| FixedOffset::east_opt(0).unwrap());
+    let current_time = utc_now.with_timezone(&timezone);
+
+    (current_time, timezone)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn get_browser_time_and_timezone() -> (DateTime<FixedOffset>, FixedOffset) {
+    let local_time = chrono::Local::now();
+    let timezone = *local_time.offset();
+    (local_time.with_timezone(&timezone), timezone)
 }
 
 // Get timezone name with fallback to "UTC"

@@ -27,19 +27,17 @@ where
     T: Into<Signal<u64>> + 'static,
 {
     let interval_millis = interval_millis.into();
-    Effect::new(move |prev_handle: Option<IntervalHandle>| {
-        if let Some(prev_handle) = prev_handle {
+    Effect::new(move |prev_handle: Option<Option<IntervalHandle>>| {
+        if let Some(Some(prev_handle)) = prev_handle {
             prev_handle.clear();
         }
-        set_interval_with_handle(f.clone(), Duration::from_millis(interval_millis.get()))
-            .expect("could not create interval")
+
+        set_interval_with_handle(f.clone(), Duration::from_millis(interval_millis.get())).ok()
     });
 }
 
 #[component]
-pub fn CountDown(
-    remain: u64,
-) -> impl IntoView {
+pub fn CountDown(remain: u64) -> impl IntoView {
     let remaining_time = RwSignal::new(remain / 1000);
     let urgency = Memo::new(move |_| get_urgency(remaining_time.get()));
 
@@ -63,13 +61,11 @@ pub fn CountDown(
         (days, hours, minutes, seconds)
     };
 
-    let urgency_class = move || {
-        match urgency.get() {
-            UrgencyLevel::Normal => "countdown-normal",
-            UrgencyLevel::Attention => "countdown-attention",
-            UrgencyLevel::Warning => "countdown-warning",
-            UrgencyLevel::Urgent => "countdown-urgent",
-        }
+    let urgency_class = move || match urgency.get() {
+        UrgencyLevel::Normal => "countdown-normal",
+        UrgencyLevel::Attention => "countdown-attention",
+        UrgencyLevel::Warning => "countdown-warning",
+        UrgencyLevel::Urgent => "countdown-urgent",
     };
 
     view! {

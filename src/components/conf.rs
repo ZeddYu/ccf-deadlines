@@ -65,6 +65,17 @@ pub struct TimePoint {
     pub r#type: i32,
 }
 
+pub const STATUS_RUN: &str = "RUN";
+pub const STATUS_TBD: &str = "TBD";
+pub const STATUS_FIN: &str = "FIN";
+
+pub fn category_order(sub: &str) -> usize {
+    get_categories()
+        .iter()
+        .position(|category| category.sub == sub)
+        .unwrap_or(usize::MAX)
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct ConfItem {
     pub title: String,
@@ -93,7 +104,6 @@ pub struct ConfItem {
     pub subname_en: String,
     pub google_calendar_url: Option<String>,
     pub icloud_calendar_url: Option<String>,
-    pub acc_str: Option<String>,
     pub ddls: Vec<TimePoint>,
 }
 

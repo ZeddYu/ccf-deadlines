@@ -1,8 +1,8 @@
 use leptos::prelude::*;
 use serde::{Deserialize, Serialize};
 use thaw::Icon;
-use wasm_bindgen_futures::spawn_local;
 
+use crate::components::dom::schedule_non_critical_async_request;
 use crate::components::gitbutton::GitButton;
 use crate::components::theme::{ThemeController, ThemePreference};
 
@@ -17,7 +17,7 @@ struct CommitInfo {
 }
 
 #[component]
-pub fn Header(theme_controller: ThemeController) -> impl IntoView {
+pub fn Header(theme_controller: ThemeController, use_english: RwSignal<bool>) -> impl IntoView {
     let (show_latest_conf, set_show_latest_conf) = signal(false);
     let (show_str, set_show_str) = signal(String::new());
     let theme_preference = theme_controller.preference();
@@ -42,28 +42,35 @@ pub fn Header(theme_controller: ThemeController) -> impl IntoView {
         )
     };
 
-    // Effect to fetch GitHub commits data on mount
+    let language_button_label = move || {
+        if use_english.get() {
+            "Switch language to Chinese"
+        } else {
+            "Switch language to English"
+        }
+    };
+
     Effect::new(move |_| {
-        spawn_local(async move {
-            match fetch_latest_commit().await {
-                Ok((show_conf, conf_str)) => {
-                    set_show_latest_conf.set(show_conf);
-                    set_show_str.set(conf_str);
-                }
-                Err(_) => {}
-            }
-        });
+        fetch_latest_commit_after_delay(set_show_latest_conf, set_show_str);
     });
 
     view! {
-        <section>
-            <div class="header-brand-row">
-                <a href="/" class="title">
-                    "CCFDDL"
-                    <sup>"®"</sup>
-                    "\u{00a0}Open Deadlines"
-                </a>
-                <div class="header-brand-actions">
+        <section class="home-masthead" aria-labelledby="site-title">
+            <div class="home-masthead-shell">
+                <div class="home-masthead-copy">
+                    <h1 id="site-title" class="home-masthead-heading">
+                        <a href="/" class="home-masthead-title">
+                            "CCFDDL"
+                            <sup>"®"</sup>
+                            "\u{00a0}Open Deadlines"
+                        </a>
+                    </h1>
+                    <p class="home-masthead-subtitle">
+                        "Global conference deadline countdowns for fast search and tracking."
+                    </p>
+                </div>
+
+                <div class="home-masthead-actions" aria-label="Homepage actions">
                     <button
                         type="button"
                         class="header-theme-button"
@@ -73,9 +80,9 @@ pub fn Header(theme_controller: ThemeController) -> impl IntoView {
                     >
                         {move || {
                             let icon = match theme_preference.get() {
-                                ThemePreference::System => icondata::BsCircleHalf,
-                                ThemePreference::Light => icondata::BsSun,
-                                ThemePreference::Dark => icondata::BsMoonStars,
+                                ThemePreference::System => icondata::BsDisplayFill,
+                                ThemePreference::Light => icondata::BsSunFill,
+                                ThemePreference::Dark => icondata::BsMoonStarsFill,
                             };
 
                             view! { <Icon icon=icon class="header-theme-icon" /> }
@@ -84,47 +91,68 @@ pub fn Header(theme_controller: ThemeController) -> impl IntoView {
                     <div class="header-git-button">
                         <GitButton />
                     </div>
+                    <button
+                        type="button"
+                        class="header-language-pill"
+                        aria-label=language_button_label
+                        title=language_button_label
+                        on:click=move |_| use_english.update(|value| *value = !*value)
+                    >
+                        <Icon icon=icondata::BsGlobe2 class="header-language-icon" />
+                        <span>{move || if use_english.get() { "English" } else { "中文" }}</span>
+                    </button>
                 </div>
+            </div>
+
+            <div class="home-trust-row">
                 {move || {
                     show_latest_conf
                         .get()
                         .then(|| {
                             view! {
-                                <span class="header-latest-badge">
-                                    "Latest: " {show_str.get()} " !!!"
-                                </span>
+                                <div
+                                    class="home-update-note"
+                                    role="status"
+                                    aria-live="polite"
+                                    aria-atomic="true"
+                                >
+                                    <Icon icon=icondata::BsInfoCircleFill class="home-update-icon" />
+                                    <span class="home-update-text">
+                                        "Latest Update: " {show_str.get()}
+                                    </span>
+                                </div>
                             }
                         })
                 }}
-            </div>
-            <div class="el-row subtitle">
-                "Worldwide Conference Deadline Countdowns. To add/edit a conference,\u{00a0}"
+
+                <div class="home-data-note">
+                    "Data is manually collected and is for reference purposes only."
+                    <Icon icon=icondata::BsInfoCircle class="hero-disclaimer-icon" />
+                </div>
+
                 <a
-                    class="header-muted-link interactive-link"
+                    class="home-contribute-link interactive-link"
                     href="https://github.com/ccfddl/ccf-deadlines/pulls"
                     target="_blank"
+                    rel="noopener noreferrer"
                 >
-                    "send a pull request"
-                </a> "."
-            </div>
-            <div class="el-row subtitle">
-                "Preview tabular portal:\u{00a0}"
-                <a class="header-muted-link interactive-link" href="https://ccfddl.cn/" target="_blank">
-                    "https://ccfddl.cn/"
-                </a> ", or scan to try\u{00a0}"
-                <a
-                    class="header-muted-link interactive-link"
-                    href="https://github.com/ccfddl/ccf-deadlines/blob/main/.readme_assets/applet_qrcode.jpg"
-                    target="_blank"
-                >
-                    "wechat applet"
-                </a> "."
-            </div>
-            <div class="el-row subtitle">
-                "*Disclaimer: The data provided by ccfddl is manually collected and for reference purposes only."
+                    "Contribute updates"
+                </a>
             </div>
         </section>
     }
+}
+
+fn fetch_latest_commit_after_delay(
+    set_show_latest_conf: WriteSignal<bool>,
+    set_show_str: WriteSignal<String>,
+) {
+    schedule_non_critical_async_request(async move {
+        if let Ok((show_conf, conf_str)) = fetch_latest_commit().await {
+            set_show_latest_conf.set(show_conf);
+            set_show_str.set(conf_str);
+        }
+    });
 }
 
 async fn fetch_latest_commit() -> Result<(bool, String), Box<dyn std::error::Error>> {

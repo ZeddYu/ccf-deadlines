@@ -4,31 +4,64 @@
 <head>
   <script>
     (() => {
-      const stored = localStorage.getItem('theme');
-      const preference = stored === 'light' || stored === 'dark' || stored === 'system'
-        ? stored
-        : 'system';
-      const media = window.matchMedia('(prefers-color-scheme: dark)');
-      const resolved = preference === 'system'
-        ? (media.matches ? 'dark' : 'light')
-        : preference;
-      document.documentElement.setAttribute('data-theme', resolved);
+      try {
+        const stored = localStorage.getItem('theme');
+        const preference = stored === 'light' || stored === 'dark' || stored === 'system'
+          ? stored
+          : 'system';
+        const media = window.matchMedia?.('(prefers-color-scheme: dark)');
+        const resolved = preference === 'system'
+          ? (media?.matches ? 'dark' : 'light')
+          : preference;
+        document.documentElement.setAttribute('data-theme', resolved);
+      } catch (_) {
+        const media = window.matchMedia?.('(prefers-color-scheme: dark)');
+        document.documentElement.setAttribute('data-theme', media?.matches ? 'dark' : 'light');
+      }
     })();
   </script>
 
-  <!-- Google tag (gtag.js) -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-RY374M6FJ8"></script>
   <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
-    gtag('js', new Date());
+    (() => {
+      const measurementId = 'G-RY374M6FJ8';
+      window.dataLayer = window.dataLayer || [];
+      window.gtag = function gtag(){dataLayer.push(arguments);};
 
-    gtag('config', 'G-RY374M6FJ8');
+      const loadAnalytics = () => {
+        if (document.querySelector(`script[src*="${measurementId}"]`)) return;
+
+        const script = document.createElement('script');
+        script.async = true;
+        script.src = `https://www.googletagmanager.com/gtag/js?id=${measurementId}`;
+        document.head.appendChild(script);
+
+        window.gtag('js', new Date());
+        window.gtag('config', measurementId);
+      };
+
+      const scheduleAnalytics = () => {
+        window.setTimeout(() => {
+          if ('requestIdleCallback' in window) {
+            window.requestIdleCallback(loadAnalytics, { timeout: 3000 });
+            return;
+          }
+
+          loadAnalytics();
+        }, 1500);
+      };
+
+      if (document.readyState === 'complete') {
+        scheduleAnalytics();
+      } else {
+        window.addEventListener('load', scheduleAnalytics, { once: true });
+      }
+    })();
   </script>
 
   <!-- Add a plain CSS file: see https://trunkrs.dev/assets/#css -->
   <!-- If using Tailwind with Leptos CSR, see https://trunkrs.dev/assets/#tailwind instead-->
   <link data-trunk rel="css" href="public/styles.css" />
+  <link data-trunk rel="css" href="public/homepage.css" />
 
   <!-- Include favicon in dist output: see https://trunkrs.dev/assets/#icon -->
   <link data-trunk rel="icon" href="public/favicon.ico" />

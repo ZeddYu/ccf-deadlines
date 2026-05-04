@@ -194,8 +194,16 @@ AGENTS.md
 .DS_Store
 node_modules
 dist
+dist-release/
+dist-check/
+dist-preview/
+dist-static-smoke/
 public/conference
-
+.superpowers/
+.playwright-cli/
+.playwright-mcp/
+homepage-*.png
+conference-card-style-check.png
 
 # local env files
 .env.local

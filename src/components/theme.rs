@@ -1,8 +1,10 @@
+use crate::components::storage::{get_from_local_storage, set_in_local_storage};
 use leptos::prelude::*;
+use std::cell::RefCell;
 use thaw::Theme;
-use wasm_bindgen::closure::Closure;
 use wasm_bindgen::JsCast;
-use web_sys::{window, MediaQueryListEvent};
+use wasm_bindgen::closure::Closure;
+use web_sys::{MediaQueryList, MediaQueryListEvent, window};
 
 const THEME_STORAGE_KEY: &str = "theme";
 const THEME_LIGHT: &str = "light";
@@ -34,6 +36,15 @@ pub enum ThemeMode {
 pub struct ThemeController {
     preference: RwSignal<ThemePreference>,
     mode: RwSignal<ThemeMode>,
+}
+
+thread_local! {
+    static SYSTEM_THEME_LISTENER: RefCell<Option<SystemThemeListener>> = const { RefCell::new(None) };
+}
+
+struct SystemThemeListener {
+    media_query: MediaQueryList,
+    closure: Closure<dyn FnMut(MediaQueryListEvent)>,
 }
 
 impl ThemePreference {
@@ -74,13 +85,15 @@ impl ThemeMode {
 
 impl ThemeController {
     pub fn new() -> Self {
-        let preference = RwSignal::new(
-            ThemePreference::from_storage_value(read_storage(THEME_STORAGE_KEY).as_deref()),
-        );
+        let preference = RwSignal::new(ThemePreference::from_storage_value(
+            get_from_local_storage(THEME_STORAGE_KEY).as_deref(),
+        ));
         let mode = RwSignal::new(resolve_theme_mode(preference.get_untracked()));
 
         apply_theme_to_document(mode.get_untracked());
-        setup_system_theme_listener(preference, mode);
+        SYSTEM_THEME_LISTENER.with(|listener| {
+            *listener.borrow_mut() = setup_system_theme_listener(preference, mode);
+        });
 
         Self { preference, mode }
     }
@@ -95,7 +108,7 @@ impl ThemeController {
 
     pub fn set_preference(&self, preference: ThemePreference) {
         self.preference.set(preference);
-        write_storage(THEME_STORAGE_KEY, preference.as_storage_value());
+        set_in_local_storage(THEME_STORAGE_KEY, preference.as_storage_value());
         let mode = resolve_theme_mode(preference);
         self.mode.set(mode);
         apply_theme_to_document(mode);
@@ -155,7 +168,11 @@ fn resolve_theme_mode(preference: ThemePreference) -> ThemeMode {
         ThemePreference::Dark => ThemeMode::Dark,
         ThemePreference::System => {
             if window()
-                .and_then(|win| win.match_media("(prefers-color-scheme: dark)").ok().flatten())
+                .and_then(|win| {
+                    win.match_media("(prefers-color-scheme: dark)")
+                        .ok()
+                        .flatten()
+                })
                 .map(|query| query.matches())
                 .unwrap_or(false)
             {
@@ -170,12 +187,12 @@ fn resolve_theme_mode(preference: ThemePreference) -> ThemeMode {
 fn setup_system_theme_listener(
     preference: RwSignal<ThemePreference>,
     mode: RwSignal<ThemeMode>,
-) {
-    let Some(media_query) = window()
-        .and_then(|win| win.match_media("(prefers-color-scheme: dark)").ok().flatten())
-    else {
-        return;
-    };
+) -> Option<SystemThemeListener> {
+    let media_query = window().and_then(|win| {
+        win.match_media("(prefers-color-scheme: dark)")
+            .ok()
+            .flatten()
+    })?;
 
     let closure = Closure::wrap(Box::new(move |event: MediaQueryListEvent| {
         if preference.get_untracked() != ThemePreference::System {
@@ -192,29 +209,27 @@ fn setup_system_theme_listener(
         apply_theme_to_document(next_mode);
     }) as Box<dyn FnMut(MediaQueryListEvent)>);
 
-    let _ = media_query.add_event_listener_with_callback(
-        "change",
-        closure.as_ref().unchecked_ref(),
-    );
-    closure.forget();
+    let _ =
+        media_query.add_event_listener_with_callback("change", closure.as_ref().unchecked_ref());
+
+    Some(SystemThemeListener {
+        media_query,
+        closure,
+    })
 }
 
-fn apply_theme_to_document(mode: ThemeMode) {
-    if let Some(document) = window().and_then(|win| win.document()) {
-        if let Some(root) = document.document_element() {
-            let _ = root.set_attribute("data-theme", mode.as_data_theme());
-        }
+impl Drop for SystemThemeListener {
+    fn drop(&mut self) {
+        let _ = self
+            .media_query
+            .remove_event_listener_with_callback("change", self.closure.as_ref().unchecked_ref());
     }
 }
 
-fn read_storage(key: &str) -> Option<String> {
-    window()
-        .and_then(|win| win.local_storage().ok().flatten())
-        .and_then(|storage| storage.get_item(key).ok().flatten())
-}
-
-fn write_storage(key: &str, value: &str) {
-    if let Some(storage) = window().and_then(|win| win.local_storage().ok().flatten()) {
-        let _ = storage.set_item(key, value);
+fn apply_theme_to_document(mode: ThemeMode) {
+    if let Some(document) = window().and_then(|win| win.document())
+        && let Some(root) = document.document_element()
+    {
+        let _ = root.set_attribute("data-theme", mode.as_data_theme());
     }
 }

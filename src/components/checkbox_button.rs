@@ -1,7 +1,27 @@
+use crate::components::dom::focus_element_by_id_after_render;
 use leptos::prelude::*;
 use std::collections::HashSet;
+use web_sys::KeyboardEvent;
 
 const NON_RANK_VALUE: &str = "N";
+
+pub fn format_rank_label(system: &str, rank: &str) -> String {
+    match (system, rank) {
+        ("CCF", "N") => "Non-CCF".to_string(),
+        ("CORE", "N") => "Non-CORE".to_string(),
+        ("THCPL", "N") => "Non-THCPL".to_string(),
+        _ => format!("{} {}", system, rank),
+    }
+}
+
+pub fn format_rank_summary_value(system: &str, rank: &str) -> String {
+    match (system, rank) {
+        ("CCF", "N") => "Non-CCF".to_string(),
+        ("CORE", "N") => "Non-CORE".to_string(),
+        ("THCPL", "N") => "Non-THCPL".to_string(),
+        _ => rank.to_string(),
+    }
+}
 
 #[derive(Clone, PartialEq, Eq)]
 pub struct FilterDropdownOption {
@@ -109,12 +129,13 @@ pub fn MultiSelectDropdown(
     let title_for_panel = title.clone();
     let options_for_render = StoredValue::new(options.clone());
     let summary = Memo::new(move |_| {
-        let selected = selected_values.get();
-        let selected_labels: Vec<&str> = options_for_summary
-            .iter()
-            .filter(|option| selected.contains(option.value))
-            .map(|option| option.summary_label)
-            .collect();
+        let selected_labels: Vec<&str> = selected_values.with(|selected| {
+            options_for_summary
+                .iter()
+                .filter(|option| selected.contains(option.value))
+                .map(|option| option.summary_label)
+                .collect()
+        });
 
         match selected_labels.len() {
             0 => title_for_summary.clone(),
@@ -132,7 +153,7 @@ pub fn MultiSelectDropdown(
         }
     });
 
-    let has_selection = Memo::new(move |_| !selected_values.get().is_empty());
+    let has_selection = Memo::new(move |_| selected_values.with(|selected| !selected.is_empty()));
     let clear_label = Memo::new(move |_| {
         if use_english.get() {
             "Clear".to_string()
@@ -141,10 +162,17 @@ pub fn MultiSelectDropdown(
         }
     });
     let dropdown_id_for_toggle = dropdown_id.clone();
+    let trigger_id = format!("{dropdown_id}-filter-trigger");
+    let trigger_id_for_escape = StoredValue::new(trigger_id.clone());
+    let panel_id = format!("{dropdown_id}-filter-panel");
+    let panel_id_for_trigger = panel_id.clone();
+    let panel_heading_id = format!("{dropdown_id}-filter-panel-heading");
+    let panel_heading_id_for_label = StoredValue::new(panel_heading_id.clone());
 
     view! {
         <div class="filter-dropdown" style=format!("--filter-panel-width: {panel_width};")>
             <button
+                id=trigger_id
                 type="button"
                 class=move || {
                 if has_selection.get() {
@@ -161,6 +189,9 @@ pub fn MultiSelectDropdown(
                         }
                     }
                 }
+                aria-haspopup="true"
+                aria-expanded=move || is_open.get().to_string()
+                aria-controls=panel_id_for_trigger
                 on:click=move |_| {
                     if is_open.get_untracked() {
                         open_dropdown.set(None);
@@ -168,15 +199,33 @@ pub fn MultiSelectDropdown(
                         open_dropdown.set(Some(dropdown_id_for_toggle.clone()));
                     }
                 }
+                on:keydown=move |event: KeyboardEvent| {
+                    if event.key() == "Escape" && is_open.get_untracked() {
+                        event.stop_propagation();
+                        open_dropdown.set(None);
+                    }
+                }
             >
                 <span class="filter-dropdown-trigger-text">{move || summary.get()}</span>
-                <span class="filter-dropdown-trigger-icon">"▾"</span>
+                <span class="filter-dropdown-trigger-icon" aria-hidden="true">"▾"</span>
             </button>
 
             <Show when=move || is_open.get()>
-                <div class="filter-dropdown-panel">
+                <div
+                    id=panel_id.clone()
+                    class="filter-dropdown-panel"
+                    role="group"
+                    aria-labelledby=move || panel_heading_id_for_label.get_value()
+                    on:keydown=move |event: KeyboardEvent| {
+                        if event.key() == "Escape" {
+                            event.stop_propagation();
+                            open_dropdown.set(None);
+                            focus_element_by_id_after_render(trigger_id_for_escape.get_value());
+                        }
+                    }
+                >
                     <div class="filter-dropdown-panel-header">
-                        <span>{title_for_panel.clone()}</span>
+                        <span id=panel_heading_id.clone()>{title_for_panel.clone()}</span>
                         <button
                             type="button"
                             class="filter-dropdown-clear"
@@ -205,7 +254,9 @@ pub fn MultiSelectDropdown(
                                             <input
                                                 type="checkbox"
                                                 prop:checked=move || {
-                                                    selected_values.get().contains(&value_for_checked)
+                                                    selected_values.with(|selected| {
+                                                        selected.contains(&value_for_checked)
+                                                    })
                                                 }
                                                 on:change=move |_| {
                                                     selected_values.update(|set| {
@@ -243,19 +294,20 @@ pub fn MultiSelectDropdown(
               display: inline-flex;
               align-items: center;
               justify-content: space-between;
-              gap: 6px;
-              min-width: 88px;
-              max-width: 132px;
-              padding: 6px 9px;
+              gap: 8px;
+              min-width: 112px;
+              max-width: 156px;
+              min-height: 44px;
+              padding: 0 14px;
               border: 1px solid var(--color-border);
-              border-radius: 8px;
-              background: var(--color-bg-elevated);
+              border-radius: 14px;
+              background: color-mix(in srgb, var(--color-bg-elevated) 92%, transparent);
               color: var(--color-text-secondary);
               box-shadow: var(--shadow-sm);
               cursor: pointer;
               user-select: none;
               text-align: left;
-              font-size: 11px;
+              font-size: 13px;
               font-weight: 600;
               transition: border-color 0.2s, color 0.2s, box-shadow 0.2s, background-color 0.2s, transform 0.2s;
             }
@@ -274,12 +326,13 @@ pub fn MultiSelectDropdown(
             }
 
             .filter-dropdown-trigger.active {
-              border-color: var(--color-primary);
-              color: var(--color-primary);
+              border-color: var(--color-accent);
+              color: var(--color-text-accent);
               background: var(--state-selected);
             }
 
             .filter-dropdown-trigger-text {
+              flex: 1;
               overflow: hidden;
               text-overflow: ellipsis;
               white-space: nowrap;
@@ -287,7 +340,7 @@ pub fn MultiSelectDropdown(
 
             .filter-dropdown-trigger-icon {
               color: inherit;
-              font-size: 10px;
+              font-size: 11px;
               transition: transform 0.2s;
             }
 
@@ -299,14 +352,15 @@ pub fn MultiSelectDropdown(
               position: absolute;
               right: 0;
               top: calc(100% + 6px);
+              box-sizing: border-box;
               width: var(--filter-panel-width, 220px);
-              padding: 10px;
+              padding: 8px;
               border: 1px solid var(--color-border-light);
-              border-radius: 10px;
+              border-radius: 12px;
               background: var(--color-bg-overlay);
               box-shadow: var(--shadow-overlay);
-              backdrop-filter: blur(10px);
-              z-index: 20;
+              backdrop-filter: blur(12px);
+              z-index: 60;
             }
 
             .filter-dropdown-panel-header {
@@ -314,7 +368,8 @@ pub fn MultiSelectDropdown(
               align-items: center;
               justify-content: space-between;
               gap: 6px;
-              margin-bottom: 6px;
+              margin-bottom: 4px;
+              padding: 0 2px;
               font-size: 11px;
               font-weight: 600;
               color: var(--color-text-tertiary);
@@ -346,14 +401,16 @@ pub fn MultiSelectDropdown(
             .filter-dropdown-options {
               display: flex;
               flex-direction: column;
-              gap: 4px;
+              gap: 2px;
             }
 
             .filter-dropdown-option {
               display: flex;
               align-items: center;
-              gap: 6px;
-              padding: 6px 8px;
+              box-sizing: border-box;
+              min-height: 30px;
+              gap: 7px;
+              padding: 5px 8px;
               border-radius: 8px;
               color: var(--color-text-primary);
               font-size: 12px;
@@ -383,6 +440,18 @@ pub fn MultiSelectDropdown(
                 left: 0;
                 right: auto;
                 width: 100%;
+                padding: 10px;
+              }
+
+              .filter-dropdown-clear {
+                min-height: 44px;
+                padding: 0 12px;
+              }
+
+              .filter-dropdown-option {
+                min-height: 44px;
+                padding: 7px 10px;
+                font-size: 13px;
               }
             }
             "#}
