@@ -679,6 +679,16 @@ a {
     font-weight: 700;
 }
 
+html[data-theme="dark"] .conference-note {
+    border-left-color: color-mix(in srgb, var(--color-accent) 34%, var(--color-border-light));
+    background: color-mix(in srgb, var(--color-bg-elevated) 85%, var(--color-accent-soft));
+    color: var(--color-text-secondary);
+}
+
+html[data-theme="dark"] .conference-note b {
+    color: color-mix(in srgb, var(--color-accent) 45%, var(--color-text-secondary));
+}
+
 .conference-category-chip {
     display: inline-flex;
     position: relative;

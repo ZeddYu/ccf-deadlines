@@ -10,7 +10,14 @@
     --surface-banner: color-mix(in srgb, var(--color-accent-soft) 72%, var(--color-bg-elevated));
     --surface-chip: color-mix(in srgb, var(--color-bg-elevated) 88%, transparent);
     --surface-chip-active: var(--color-primary-soft);
+    --home-selected-text: var(--color-accent);
+    --filter-active-border: var(--color-accent);
     --shadow-card: var(--shadow-md);
+}
+
+html[data-theme="dark"] {
+    --home-selected-text: var(--color-primary-hover);
+    --filter-active-border: var(--color-primary);
 }
 
 body {
@@ -275,6 +282,11 @@ body::before {
     background: var(--surface-control) !important;
 }
 
+.home-control-filters .filter-dropdown-trigger.active,
+.mobile-filter-panel .filter-dropdown-trigger.active {
+    border-color: var(--filter-active-border) !important;
+}
+
 .home-control-filters .filter-dropdown-panel,
 .mobile-filter-panel .filter-dropdown-panel {
     border-radius: 12px !important;
@@ -350,7 +362,7 @@ body::before {
 .home-chip-active {
     border-color: color-mix(in srgb, var(--color-primary) 40%, var(--color-border-strong));
     background: var(--surface-chip-active);
-    color: var(--color-accent);
+    color: var(--home-selected-text);
     box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-primary) 10%, transparent);
 }
 
@@ -516,12 +528,12 @@ body::before {
 
 .tag-highlight .plain-tag {
     background: var(--color-primary-soft) !important;
-    color: var(--color-accent) !important;
+    color: var(--home-selected-text) !important;
     border-color: color-mix(in srgb, var(--color-primary) 36%, var(--color-border-strong)) !important;
 }
 
 .tag-highlight .plain-tag .thaw-tag__primary-text {
-    color: var(--color-accent) !important;
+    color: var(--home-selected-text) !important;
 }
 
 .conference-link-pill {
